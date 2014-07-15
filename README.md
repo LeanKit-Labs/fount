@@ -26,12 +26,12 @@ fount.inject( function( one, two, three ) {
 
 ```
 
-The second approach is easier to read when starting out, but consider how fragile the second approach is. If someone were to come along and refactor your generic arguments to be more expressive and not change the keys the dependencies were registered against, it would straight-up ruin your day.
+The second approach is easier to read when starting out, but consider how fragile it is. If someone were to come along and refactor your generic arguments to be more expressive and not change the keys the dependencies were registered against, it would break a lot of code.
 
-You get to choose which approach you'd like to take, but just keep in mind there's more risk to the second.
+You get to choose the style you prefer, just keep in mind there's more risk with argument name only.
 
 ## Multiple Containers
-Fount supports multiple containers. If you don't specify one when making calls, it will use the 'default' container. All the examples in this doc use implicit default container.
+Fount supports multiple containers. If you don't specify one when making calls, it will use the 'default' container. Most examples in this doc use the default container implicitly.
 
 You can use a named container in two ways:
  * pass the container name in parenthesis before making the call (all commands)
@@ -49,10 +49,10 @@ fount.resolve( 'myContainer.myKey' ).then( function( value ) {
 ```
 
 ## Scope & Lifecycles
-Chances are you won't need to worry about this - you'll register dependencies and resolve them and never think about lifecycles or scopes. In the event you do need more control, fount allows you to supply lifecycle arguments during registration and an optional scope name during resolution that change how fount normally behaves.
+Chances are you won't need this - you'll register dependencies and resolve them and never think about lifecycle or scope. When you do need more control, fount allows you to supply lifecycle arguments during registration and an optional scope name during resolution that give you more granular control over resolution.
 
-### Scopes
-A scope is just a simple name that can affect how a function dependency is resolved if it was specified with a scope lifecycle. If no scope argument is provided, a scope value of 'default' will be used when resolving dependencies with a 'scoped' lifecycle.
+### Scope
+A scope is just a simple name that can affect how a function dependency is resolved if it was specified with a `scoped` lifecycle. When resolving a dependency with a `scoped` lifecycle, a `default` will be used when resolving dependencies. (see the Registering section for examples)
 
 Think of a scope in Fount like a second level of caching (because that's exactly what it is). You can purge a scope anytime with `purgeScope`:
 
@@ -60,22 +60,23 @@ Think of a scope in Fount like a second level of caching (because that's exactly
 fount.purgeScope( 'myScope' );
 ```
 
-### Lifecycles - static, scoped or factory
+### Lifecycle ( static, scoped or factory )
 A lifecycle tells fount how long the result of a function dependency is good for. Static is the the default.
 
- * static - once a value is returned from a function, always use that value
- * scoped - like static but resolved once per scope (specified by a scope name)
- * factory - if the dependency is a function it will be called every time
+ * static - once a value is returned, it will **always** be returned for future resolution
+ * scoped - like static but resolved once per scope (specified by name)
+ * factory - if the dependency is a function it will re-evaluated every time
 
 ## Registering 
 Registering is simple - provide a string name and then supply either a value, function or promise. See each section for more detail.
 
 ```javascript
+// lifeCycle is optional and 'static' by default
 fount.register( 'name', value | function | promise, [lifeCycle] );
 ```
 
 ### value
-Once a value is registered, fount will always supply that value to any resolve call. It doesn't actually make sense to provide a lifecycle option with a value or promise since it has no effect.
+Once a value is registered, fount will always supply that value to any resolve call. It doesn't actually make sense to provide a lifecycle option with a value or promise since it has no effect, but fount doesn't freak out if you forget and do this by accident.
 
 ```javascript
 fount.register( 'port', 8080 );
@@ -92,7 +93,12 @@ fount.register( 'factory', function() { return 'a thing!' } );
 If you want fount to inject dependencies into the function when calling it, you'll need to provide a string array of the dependencies in the order they should be supplied to the function:
 
 ```javascript
+// AMD users should feel right at home with this style
 fount.register( 'factory', [ 'a', 'b', 'c' ], function( a, b, c ) {} );
+
+// Angular fans and dare-devils may enjoy this style
+// dependencies are 'read' out of the argument list
+fount.register( 'factory', function( a, b, c ) {} );
 ```
 
 #### Registering functions as values
@@ -137,8 +143,11 @@ Injecting is how you get fount to invoke a function on your behalf with resolved
 // where 'a' and 'b' have been registered
 fount.inject( [ 'a', 'b' ], function( a, b)  { ... } );
 
-// with custom scope
+// within custom scope -- requires a and/or b to have been registered with 'scoped' lifecycle
 fount.inject( [ 'a', 'b' ], function( a, b)  { ... }, 'myScope' );
+
+// using keys across multiple containers
+fount.inject( [ 'one.a', 'two.b' ], function( a, b ) { ... } );
 ```
 
 ## Diagnostic
