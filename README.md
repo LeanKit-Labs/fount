@@ -105,7 +105,7 @@ fount.register( 'factory', function( a, b, c ) {} );
 You may want to register a function as a value (confused yet?) so that fount returns the function as a dependency rather than executing it for you. If that's what you're looking for, try this:
 
 ```javascript
-fount.register( 'calculator', function() { function( x, y ) { return x + y; } } );
+fount.register( 'calculator', function() { return function( x, y ) { return x + y; }; } );
 ```
 
 ### promise
@@ -141,10 +141,10 @@ Injecting is how you get fount to invoke a function on your behalf with resolved
 
 ```javascript
 // where 'a' and 'b' have been registered
-fount.inject( [ 'a', 'b' ], function( a, b)  { ... } );
+fount.inject( [ 'a', 'b' ], function( a, b )  { ... } );
 
 // within custom scope -- requires a and/or b to have been registered with 'scoped' lifecycle
-fount.inject( [ 'a', 'b' ], function( a, b)  { ... }, 'myScope' );
+fount.inject( [ 'a', 'b' ], function( a, b )  { ... }, 'myScope' );
 
 // using keys across multiple containers
 fount.inject( [ 'one.a', 'two.b' ], function( a, b ) { ... } );
