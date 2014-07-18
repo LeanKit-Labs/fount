@@ -30,7 +30,7 @@ function inject( containerName, dependencies, fn, scopeName ) {
 		}
 		return resolve( containerName, key, scopeName );
 	} );
-	promise = whenFn.apply( fn, args );
+	return whenFn.apply( fn, args );
 }
 
 function purge( containerName ) {

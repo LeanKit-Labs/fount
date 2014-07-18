@@ -202,9 +202,11 @@ describe( 'when injecting', function() {
 
 		describe( 'when resolving', function() {
 			var result;
-			before( function() {
+			before( function( done ) {
 				fount.inject( [ 'eStatic' ], function( e ) {
 					result = e;
+				} ).then( function () {
+					done();
 				} );
 			} );
 
