@@ -21,6 +21,11 @@ function getArgs( obj ) {
 
 function inject( containerName, dependencies, fn, scopeName ) {
 	scopeName = scopeName || 'default';
+	if( _.isFunction( dependencies ) ) {
+		scopeName = fn;
+		fn = dependencies;
+		dependencies = [];
+	}
 	dependencies = checkDependencies( fn, dependencies );
 	var args = dependencies.map( function( key ) {
 		var parts = key.split( '.' );
@@ -93,7 +98,6 @@ function resolve( containerName, key, scopeName ) {
 
 function trimString( str ) { return str.trim(); }
 function trim( list ) { 
-	console.log( list );
 	return ( list && list.length ) ? _.filter( list.map( trimString ) ) : []; 
 }
 

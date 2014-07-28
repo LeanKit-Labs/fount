@@ -311,6 +311,30 @@ describe( 'when injecting', function() {
 	} );
 } );
 
+describe( 'when injecting without dependency array', function() {
+	before( function() {
+		fount.purgeAll();
+		fount.register( 'one', 1 );
+		fount.register( 'two', function() { return 2; } );
+		fount.register( 'three', when( 3 ) );
+	} );
+
+	describe( 'with a dependency of each type', function() {
+		var results;
+
+		before( function( done ) {
+			fount.inject( function( one, two, three ) {
+				results = [ one, two, three ];
+				done();
+			} );
+		} );
+
+		it( 'should return array of correct values', function() {
+			results.should.eql( [ 1, 2, 3 ] );
+		} );
+	} );
+} )
+
 describe( 'when using custom containers', function() {
 	describe( 'when resolving values', function() {
 		var results;
