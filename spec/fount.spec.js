@@ -24,7 +24,7 @@ describe( 'when resolving functions', function() {
 	describe( 'without dependencies', function() {
 
 		var result;
-		fount.register( 'simpleFn', function() { return 'hello, world!' } );
+		fount.register( 'simpleFn', function() { return 'hello, world!'; } );
 
 		before( function( done ) {
 			this.timeout( 100 );
@@ -32,10 +32,27 @@ describe( 'when resolving functions', function() {
 				result = value;
 				done();
 			} );
-		} )
+		} );
 
 		it( 'should resolve the function\'s result', function() {
 			result.should.equal( 'hello, world!' );
+		} );
+	} );
+
+	describe( 'with dependency on a list', function() {
+		var result;
+		fount.register( 'simpleList', [ 1, 2, 3 ] );
+
+		before( function( done ) {
+			fount.resolve( 'simpleList' )
+				.then( function( list ) {
+					result = list;
+					done();
+				} );
+		} );
+
+		it( 'should resolve to the list', function() {
+			result.should.eql( [ 1, 2, 3 ] );
 		} );
 	} );
 
@@ -333,7 +350,7 @@ describe( 'when injecting without dependency array', function() {
 			results.should.eql( [ 1, 2, 3 ] );
 		} );
 	} );
-} )
+} );
 
 describe( 'when using custom containers', function() {
 	describe( 'when resolving values', function() {
