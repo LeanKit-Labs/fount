@@ -24,7 +24,7 @@ describe( 'when resolving functions', function() {
 	describe( 'without dependencies', function() {
 
 		var result;
-		fount.register( 'simpleFn', function() { return 'hello, world!' } );
+		fount.register( 'simpleFn', function() { return 'hello, world!'; } );
 
 		before( function( done ) {
 			this.timeout( 100 );
@@ -32,10 +32,27 @@ describe( 'when resolving functions', function() {
 				result = value;
 				done();
 			} );
-		} )
+		} );
 
 		it( 'should resolve the function\'s result', function() {
 			result.should.equal( 'hello, world!' );
+		} );
+	} );
+
+	describe( 'with dependency on a list', function() {
+		var result;
+		fount.register( 'simpleList', [ 1, 2, 3 ] );
+
+		before( function( done ) {
+			fount.resolve( 'simpleList' )
+				.then( function( list ) {
+					result = list;
+					done();
+				} );
+		} );
+
+		it( 'should resolve to the list', function() {
+			result.should.eql( [ 1, 2, 3 ] );
 		} );
 	} );
 
@@ -307,6 +324,30 @@ describe( 'when injecting', function() {
 			it( 'should resolve to reflect changes in dependencies', function() {
 				result.should.equal( 20 );
 			} );
+		} );
+	} );
+} );
+
+describe( 'when injecting without dependency array', function() {
+	before( function() {
+		fount.purgeAll();
+		fount.register( 'one', 1 );
+		fount.register( 'two', function() { return 2; } );
+		fount.register( 'three', when( 3 ) );
+	} );
+
+	describe( 'with a dependency of each type', function() {
+		var results;
+
+		before( function( done ) {
+			fount.inject( function( one, two, three ) {
+				results = [ one, two, three ];
+				done();
+			} );
+		} );
+
+		it( 'should return array of correct values', function() {
+			results.should.eql( [ 1, 2, 3 ] );
 		} );
 	} );
 } );
