@@ -1,6 +1,7 @@
 var should = require( 'should' );
 var when = require( 'when' );
 var fount = require( '../src/index.js' );
+var sinon = require( 'sinon' );
 
 describe( 'when resolving values', function() {
 	var result;
@@ -16,6 +17,42 @@ describe( 'when resolving values', function() {
 
 	it( 'should resolve correctly', function() {
 		result.should.equal( 'ohhai' );
+	} );
+} );
+
+describe( 'when resolving sinon.stub', function() {
+	var stub = sinon.stub();	
+	var result;
+
+	before( function( done ) {
+		fount.register( 'aStub', stub );
+		fount.inject( function( aStub ) {
+			result = aStub;
+			done();
+		} );
+	} );
+
+	it( 'should resolve the stub as a function', function() {
+		result.should.eql( stub );
+	} );
+} );
+
+describe( 'when resolving a function with unresolvable dependencies', function() {
+	var fn = function( x, y, z ) {
+		return x + y + z;
+	};	
+	var result;
+
+	before( function( done ) {
+		fount.register( 'unresolvable', fn );
+		fount.inject( function( unresolvable ) {
+			result = unresolvable( 1, 2, 3 );
+			done();
+		} );
+	} );
+
+	it( 'should resolve the stub as a function', function() {
+		result.should.eql( 6 );
 	} );
 } );
 

@@ -1,6 +1,6 @@
 {
   "name": "fount",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "A source from which dependencies flow",
   "main": "./src/index.js",
   "scripts": {
@@ -30,6 +30,7 @@
   "devDependencies": {
     "gulp": "^3.8.6",
     "gulp-mocha": "^0.5.1",
-    "should": "^4.0.4"
+    "should": "^4.0.4",
+    "sinon": "^1.12.1"
   }
 }

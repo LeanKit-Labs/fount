@@ -83,7 +83,12 @@ fount.register( 'port', 8080 );
 ```
 
 ### function
-Registering a function with fount will cause it to invoke the function during resolution and return the result.
+Registering a function with fount will cause it to invoke the function during resolution and return the result with two exceptions:
+
+ 1. The function is a stub or some other abstraction that cannot have dependencies resolved for it
+ 2. The function has dependencies which do not exist for fount
+
+In these exceptional scenarios, fount will resolve the dependency with the function itself rather than calling it for you.
 
 ```javascript
 fount.register( 'factory', function() { return 'a thing!' } );

@@ -7,9 +7,14 @@ var debug = require( 'debug' )( 'fount' );
 var containers = {};
 
 function checkDependencies( fn, dependencies ) {
-	return ( _.isFunction( fn ) && !dependencies.length ) ?
-		trim( /[(]([^)]*)[)]/.exec( fn.toString() )[ 1 ].split( ',' ) ) :
-		dependencies;
+	var fnString = fn.toString();
+	if( /[(][^)]*[)]/.test( fnString ) ) {
+		return ( _.isFunction( fn ) && !dependencies.length ) ?
+			trim( /[(]([^)]*)[)]/.exec( fnString )[ 1 ].split( ',' ) ) :
+			dependencies;
+	} else {
+		return undefined;
+	}
 }
 
 function container( name ) {
@@ -75,6 +80,33 @@ function register() {
 	container( containerName )[ key ] = promise;
 }
 
+function canResolve( containerName, dependencies, scopeName ) {
+	scopeName = scopeName || 'default';
+	return _.all( dependencies, function( key ) {
+		if( _.isArray( key ) ) {
+			var ctr = container( containerName );
+			var vals = [];
+			key.forEach( function( k ) {
+				var originalKey = k;
+				var parts = k.split( '.' );
+				if( parts.length > 1 ) {
+					ctr = container( parts[ 0 ] );
+					k = parts[ 1 ];
+				}
+				vals.push( ctr[ k ] );
+			} );
+			return _.all( vals );
+		} else {
+			var parts = key.split( '.' );
+			if( parts.length > 1 ) {
+				containerName = parts[ 0 ];
+				key = parts[ 1 ];
+			}
+			return container( containerName )[ key ];	
+		}
+	} );
+}
+
 function resolve( containerName, key, scopeName ) {
 	scopeName = scopeName || 'default';
 	if( _.isArray( key ) ) {
@@ -117,7 +149,7 @@ function scope( containerName, name ) {
 var wrappers = {
 	factory: function ( containerName, key, value, dependencies ) {
 		return function( scopeName ) {
-			if( _.isFunction( value ) ) {
+			if( _.isFunction( value ) && dependencies && canResolve( containerName, dependencies, scopeName ) ) {
 				var args = dependencies.map( function( key ) {
 					return resolve( containerName, key, scopeName );
 				} );
@@ -139,7 +171,7 @@ var wrappers = {
 			if( cache[ key ] ) {
 				return cache[ key ];
 			}
-			else if( _.isFunction( value ) ) {
+			else if( _.isFunction( value ) && dependencies && canResolve( containerName, dependencies, scopeName ) ) {
 				var args = dependencies.map( function( key ) {
 					return resolve( containerName, key, scopeName );
 				} );
@@ -158,7 +190,7 @@ var wrappers = {
 	},
 	static: function( containerName, key, value, dependencies ) {
 		var promise;
-		if( _.isFunction( value ) ) {
+		if( _.isFunction( value ) && dependencies && canResolve( containerName, dependencies ) ) {
 			var args = dependencies.map( function( key ) {
 				return resolve( containerName, key );
 			} );
