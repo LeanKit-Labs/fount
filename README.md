@@ -10,7 +10,7 @@ var fount = require( 'fount' );
 ```
 
 ## A note about style and safety
-Fount supports two styles of identifying dependency: string array (like AMD) and by argument names (like Angular). 
+Fount supports two styles of identifying dependency: string array (like AMD) and by argument names (like Angular).
 
 Example:
 ```javascript
@@ -38,12 +38,12 @@ You can use a named container in two ways:
  * use period delimited namespaces in your key names (all commands except purge)
 
 ```javascript
-fount( 'myContainer' ).resolve( 'myKey' ).then( function( value ) { 
+fount( 'myContainer' ).resolve( 'myKey' ).then( function( value ) {
 	// do something cool
 } );
 
 // same as above, but terser
-fount.resolve( 'myContainer.myKey' ).then( function( value ) { 
+fount.resolve( 'myContainer.myKey' ).then( function( value ) {
 	// do something cool
 } );
 ```
@@ -67,7 +67,7 @@ A lifecycle tells fount how long the result of a function dependency is good for
  * scoped - like static but resolved once per scope (specified by name)
  * factory - if the dependency is a function it will re-evaluated every time
 
-## Registering 
+## Registering
 Registering is simple - provide a string name and then supply either a value, function or promise. See each section for more detail.
 
 ```javascript
@@ -158,6 +158,11 @@ fount.inject( [ 'one.a', 'two.b' ], function( a, b ) { ... } );
 ## Diagnostic
 Right now this is pretty weak, but if you call `log`, Fount will dump the containers and scopes out so you can see what keys are present. Got ideas for more useful ways to troubleshoot? I'd love a PR :smile:!
 
+## Tests & CI Mode
+
+* Running `gulp` starts both the `test` and `watch` tasks, so you'll see the tests re-run any time you save a file under `src/` or `spec/`.
+* Running `gulp coverage` will run istanbul and create a `coverage/` folder.
+* Running `gulp show-coverage` will run istanbul and open the browser-based coverage report.
 
 ## Things to do soon
  * Good error handling - returning clear error messages when a resolution/injection fails
