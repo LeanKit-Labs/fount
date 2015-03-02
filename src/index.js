@@ -45,14 +45,17 @@ function inject( containerName, dependencies, fn, scopeName ) {
 }
 
 function purge( containerName ) {
+	debug( 'purging container %s', containerName );
 	containers[ containerName ] = { scopes: {} };
 }
 
 function purgeAll() {
+	debug( 'purging all containers' );
 	containers = { scopes: {} };
 }
 
 function purgeScope( containerName, scopeName ) {
+	debug( 'purging container %s, scope %s', containerName, scopeName );
 	delete container( containerName ).scopes[ scopeName ];
 }
 
@@ -69,7 +72,7 @@ function register() {
 		containerName = parts[ 0 ];
 		key = parts[ 1 ];
 	}
-	
+
 	if( _.isFunction( fn ) ) {
 		dependencies = checkDependencies( fn, dependencies );
 	} else {
@@ -102,7 +105,7 @@ function canResolve( containerName, dependencies, scopeName ) {
 				containerName = parts[ 0 ];
 				key = parts[ 1 ];
 			}
-			return container( containerName )[ key ];	
+			return container( containerName )[ key ];
 		}
 	} );
 }
@@ -128,17 +131,15 @@ function resolve( containerName, key, scopeName ) {
 			containerName = parts[ 0 ];
 			key = parts[ 1 ];
 		}
-		return container( containerName )[ key ]( scopeName );	
+		return container( containerName )[ key ]( scopeName );
 	}
 }
 
-function trimString( str ) { return str.trim(); }
-function trim( list ) { 
-	return ( list && list.length ) ? _.filter( list.map( trimString ) ) : []; 
+function trimString( str ) {
+	return str.trim();
 }
-
-function type( obj ) {
-	return Object.prototype.toString.call( obj );
+function trim( list ) {
+	return ( list && list.length ) ? _.filter( list.map( trimString ) ) : [];
 }
 
 function scope( containerName, name ) {
@@ -147,7 +148,7 @@ function scope( containerName, name ) {
 }
 
 var wrappers = {
-	factory: function ( containerName, key, value, dependencies ) {
+	factory: function( containerName, key, value, dependencies ) {
 		return function( scopeName ) {
 			if( _.isFunction( value ) && dependencies && canResolve( containerName, dependencies, scopeName ) ) {
 				var args = dependencies.map( function( key ) {
@@ -155,13 +156,13 @@ var wrappers = {
 				} );
 				return whenFn.apply( value, args );
 			} else {
-				return when.promise( function ( resolve ) {
+				return when.promise( function( resolve ) {
 					resolve( value );
 				} );
 			}
 		};
 	},
-	scoped: function ( containerName, key, value, dependencies ) {
+	scoped: function( containerName, key, value, dependencies ) {
 		return function( scopeName ) {
 			var cache = scope( containerName, scopeName );
 			var store = function( resolvedTo ) {
@@ -169,15 +170,14 @@ var wrappers = {
 				return resolvedTo;
 			};
 			if( cache[ key ] ) {
-				return cache[ key ];
-			}
-			else if( _.isFunction( value ) && dependencies && canResolve( containerName, dependencies, scopeName ) ) {
+				return when( cache[ key ] );
+			} else if( _.isFunction( value ) && dependencies && canResolve( containerName, dependencies, scopeName ) ) {
 				var args = dependencies.map( function( key ) {
 					return resolve( containerName, key, scopeName );
 				} );
 				return whenFn.apply( value, args ).then( store );
 			} else {
-				return when.promise( function ( resolve ) {
+				return when.promise( function( resolve ) {
 					if( when.isPromiseLike( value ) ) {
 						value.then( store );
 					} else {
@@ -198,7 +198,9 @@ var wrappers = {
 		} else {
 			promise = ( value && value.then ) ? value : when( value );
 		}
-		return function() { return promise; };
+		return function() {
+			return promise;
+		};
 	}
 };
 
@@ -215,9 +217,11 @@ var fount = function( containerName ) {
 fount.inject = inject.bind( undefined, 'default' );
 fount.register = register.bind( undefined, 'default' );
 fount.resolve = resolve.bind( undefined, 'default' );
-fount.purge = purgeScope.bind( undefined, 'default' );
+fount.purge = purge.bind( undefined );
 fount.purgeAll = purgeAll;
 fount.purgeScope = purgeScope.bind( undefined, 'default' );
-fount.log = function() { console.log( containers ); };
+fount.log = function() {
+	console.log( containers );
+};
 
 module.exports = fount;
