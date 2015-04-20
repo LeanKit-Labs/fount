@@ -1,36 +1,26 @@
 var gulp = require( 'gulp' );
-var mocha = require( 'gulp-mocha' );
-var istanbul = require( 'gulp-istanbul' );
-var open = require( 'open' );
-var allSrcFiles = './src/**/*.js';
-var allSpecFiles = './spec/*.spec.js';
+var bg = require( 'biggulp' )( gulp );
 
-gulp.task( 'test', function() {
-	gulp.src( allSpecFiles )
-		.pipe( mocha( { reporter: 'spec' } ) )
-		.on( 'error', function( err ) {
-			console.log( err.stack );
-		} );
+gulp.task( 'coverage', bg.withCoverage() );
+
+gulp.task( 'coverage-watch', function() {
+	bg.watch( [ 'coverage' ] );
 } );
 
-gulp.task( 'coverage', function( cb ) {
-	return gulp.src( [ allSrcFiles ] )
-		.pipe( istanbul() )
-		.pipe( istanbul.hookRequire() )
-		.on( 'finish', function() {
-			gulp.src( [ allSpecFiles ] )
-				.pipe( mocha() )
-				.pipe( istanbul.writeReports() );
-		} );
+gulp.task( 'show-coverage', bg.showCoverage() );
+
+gulp.task( 'continuous-specs', function() {
+	return bg.test();
 } );
 
-gulp.task( 'show-coverage', [ 'coverage' ], function( cb ) {
-	open( './coverage/lcov-report/index.html' );
-	cb();
+gulp.task( 'specs-watch', function() {
+	bg.watch( [ 'continuous-specs' ] );
 } );
 
-gulp.task( 'watch', function() {
-	gulp.watch( [ allSrcFiles, './spec/**' ], [ 'test' ] );
+gulp.task( 'test-and-exit', function() {
+	return bg.testOnce();
 } );
 
-gulp.task( 'default', [ 'test', 'watch' ], function() {} );
+gulp.task( 'default', [ 'coverage', 'coverage-watch' ], function() {} );
+gulp.task( 'specs', [ 'continuous-specs', 'specs-watch' ], function() {} );
+gulp.task( 'test', [ 'test-and-exit' ] );

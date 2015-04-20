@@ -1,201 +1,227 @@
-var chai = require( "chai" );
-chai.use( require( "chai-as-promised" ) );
-chai.use( require( "sinon-chai" ) );
-var should = chai.should();
-var when = require( 'when' );
+require( './setup' );
 var fount = require( '../src/index.js' );
-var sinon = require( 'sinon' );
+var postal = require( 'postal' );
 
-describe( 'when resolving values', function() {
-	var result;
-
+describe( 'Resolving', function() {
 	before( function() {
-		fount.register( 'an value!', 'ohhai' );
-		this.timeout( 100 );
+		fount.setModule( module );
 	} );
 
-	it( 'should resolve correctly', function() {
-		return fount.resolve( 'an value!' )
-			.should.eventually.equal( 'ohhai' );
-	} );
-} );
+	describe( 'with dependencies', function() {
+		before( function() {
+			fount.register( 'an value!', 'ohhai' );
+		} );
 
-describe( 'when resolving sinon.stub', function() {
-	var stub;
-	var result;
-
-	before( function() {
-		stub = sinon.stub();
-		fount.register( 'aStub', stub );
-		return fount.inject( function( aStub ) {
-			result = aStub;
+		it( 'should resolve correctly', function() {
+			return fount.resolve( 'an value!' )
+				.should.eventually.equal( 'ohhai' );
 		} );
 	} );
 
-	it( 'should resolve the stub as a function', function() {
-		result.should.eql( stub );
+	describe( 'when resolving sinon.stub', function() {
+		var stub = sinon.stub();
+		var result;
+
+		before( function() {
+			fount.register( 'aStub', stub );
+			return fount.inject( function( aStub ) {
+				result = aStub;
+			} );
+		} );
+
+		it( 'should resolve the stub as a function', function() {
+			result.should.eql( stub );
+		} );
 	} );
-} );
 
-describe( 'when resolving a function with unresolvable dependencies', function() {
-	var fn;
-	var result;
-
-	before( function() {
-		fn = function( x, y, z ) {
+	describe( 'when resolving a function with unresolvable dependencies', function() {
+		var fn = function( x, y, z ) {
 			return x + y + z;
 		};
-		fount.register( 'unresolvable', fn );
-		return fount.inject( function( unresolvable ) {
-			result = unresolvable( 1, 2, 3 );
+		var result;
+		before( function() {
+			fount.register( 'unresolvable', fn );
+			return fount.inject( function( unresolvable ) {
+				result = unresolvable( 1, 2, 3 );
+			} );
+		} );
+
+		it( 'should resolve the stub as a function', function() {
+			result.should.eql( 6 );
 		} );
 	} );
 
-	it( 'should resolve the stub as a function', function() {
-		result.should.eql( 6 );
+	describe( 'when resolving functions', function() {
+
+		describe( 'without dependencies', function() {
+			before( function() {
+				fount.register( 'simpleFn', function() {
+					return 'hello, world!';
+				} );
+			} );
+
+			it( 'should resolve the function\'s result', function() {
+				this.timeout( 100 );
+				fount.resolve( 'simpleFn' )
+					.should.eventually.equal( 'hello, world!' );
+			} );
+		} );
+
+		describe( 'with dependency on a list', function() {
+			before( function() {
+				fount.register( 'simpleList', [ 1, 2, 3 ] );
+			} );
+
+			it( 'should resolve to the list', function() {
+				return fount.resolve( 'simpleList' )
+					.should.eventually.eql( [ 1, 2, 3 ] );
+			} );
+		} );
+
+		var a = { one: 1 };
+
+		describe( 'with static lifecycle', function() {
+			before( function() {
+				fount.register( 'a', function() {
+					return a;
+				} );
+				fount.register( 'b', 2 );
+				fount.register( 'c', when.promise( function( resolve ) {
+					resolve( 3 );
+				} ) );
+				fount.register( 'line', [ 'a', 'b', 'c' ], function( a, b, c ) {
+					return 'easy as ' + a.one + ', ' + b + ', ' + c + '!';
+				} );
+
+			} );
+
+			it( 'should resolve function\'s dependencies', function() {
+				fount.resolve( 'line' )
+					.should.eventually.equal( 'easy as 1, 2, 3!' );
+			} );
+		} );
+
+		describe( 'when modifying static dependency', function() {
+			before( function() {
+				a.one = 'DURP';
+			} );
+
+			it( 'should resolve to original value', function() {
+				fount.resolve( 'line' )
+					.should.eventually.equal( 'easy as 1, 2, 3!' );
+			} );
+		} );
+
+		describe( 'with multiple scopes', function() {
+			var obj = { x: 1 };
+			describe( 'in scope default', function() {
+				before( function() {
+					fount.register( 'o', function() {
+						return obj;
+					}, 'scoped' );
+
+					fount.register( 'getX', [ 'o' ], function( o ) {
+						return o.x;
+					}, 'scoped' );
+				} );
+
+				it( 'should resolve correctly', function() {
+					fount.resolve( [ 'o', 'getX' ] )
+						.should.eventually.eql( { 'o': { x: 1 }, 'getX': 1 } );
+				} );
+			} );
+
+			describe( 'in scope custom', function() {
+				before( function() {
+					obj.x = 10;
+				} );
+
+				it( 'should resolve indepedent results', function() {
+					fount.resolve( [ 'o', 'getX' ], 'custom' )
+						.should.eventually.eql( { 'o': { x: 10 }, 'getX': 10 } );
+				} );
+			} );
+
+			describe( 'back to default', function() {
+				it( 'should resolve original scoped results', function() {
+					fount.resolve( [ 'o', 'getX' ] )
+						.should.eventually.eql( { 'o': { x: 1 }, 'getX': 1 } );
+				} );
+			} );
+		} );
+
+		describe( 'with factory lifecycle', function() {
+			var obj = { x: 1 };
+			describe( 'in scope default', function() {
+				before( function() {
+					fount.register( 'o2', function() {
+						return obj;
+					}, 'factory' );
+					fount.register( 'getX2', [ 'o2' ], function( o ) {
+						return o.x;
+					}, 'factory' );
+				} );
+
+				it( 'should resolve correctly', function() {
+					return fount.resolve( [ 'o2', 'getX2' ] )
+						.should.eventually.eql( { 'o2': { x: 1 }, 'getX2': 1 } );
+				} );
+			} );
+
+			describe( 'after changing property', function() {
+				it( 'should resolve to new result showing change', function() {
+					obj.x = 10;
+					return fount.resolve( [ 'o2', 'getX2' ] )
+						.should.eventually.eql( {
+						'o2': { x: 10 }, 'getX2': 10
+					} );
+				} );
+			} );
+		} );
+
+		describe( 'when checking to see if key can be resolved', function() {
+			describe( 'with existing and missing dependencies', function() {
+				var result;
+				before( function() {
+					fount.register( 'met', 'true' );
+				} );
+
+				it( 'should resolve existing dependency', function() {
+					fount.canResolve( 'met' ).should.equal( true );
+				} );
+
+				it( 'should not resolve missing dependency', function() {
+					fount.canResolve( 'unmet' ).should.equal( false );
+				} );
+			} );
+		} );
+
+		describe( 'when resolving missing keys', function() {
+			it( 'should throw meaningful error message', function() {
+				should.throw( function() {
+					fount.resolve( [ 'lol', 'rofl' ] );
+				}, 'Fount could not resolve the following dependencies: lol, rofl' );
+			} );
+		} );
 	} );
 } );
 
-describe( 'when resolving functions', function() {
-	var a;
+describe( 'Injecting', function() {
 
-	describe( 'without dependencies', function() {
-		before( function() {
-			this.timeout( 100 );
-			fount.register( 'simpleFn', function() {
-				return 'hello, world!';
-			} );
-		} );
-
-		it( 'should resolve the function\'s result', function() {
-			return fount.resolve( 'simpleFn' )
-				.should.eventually.equal( 'hello, world!' );
-		} );
+	var aObj = { value: 1 };
+	var b = when.promise( function( r ) {
+		r( 2 );
 	} );
-
-	describe( 'with dependency on a list', function() {
-		before( function() {
-			fount.register( 'simpleList', [ 1, 2, 3 ] );
-		} );
-
-		it( 'should resolve to the list', function() {
-			return fount.resolve( 'simpleList' )
-				.should.eventually.eql( [ 1, 2, 3 ] );
-		} );
-	} );
-
-	describe( 'with static lifecycle', function() {
-		before( function() {
-			a = { one: 1 };
-			fount.register( 'a', function() {
-				return a;
-			} );
-			fount.register( 'b', 2 );
-			fount.register( 'c', when.promise( function( resolve ) {
-				resolve( 3 );
-			} ) );
-			fount.register( 'line', [ 'a', 'b', 'c' ], function( a, b, c ) {
-				return 'easy as ' + a.one + ', ' + b + ', ' + c + '!';
-			} );
-		} );
-
-		it( 'should resolve function\'s dependencies', function() {
-			return fount.resolve( 'line' )
-				.should.eventually.equal( 'easy as 1, 2, 3!' );
-		} );
-	} );
-
-	describe( 'when modifying static dependency', function() {
-		before( function() {
-			a.one = 'DURP';
-		} );
-
-		it( 'should resolve to original value', function() {
-			fount.resolve( 'line' )
-				.should.eventually.equal( 'easy as 1, 2, 3!' );
-		} );
-	} );
-
-	describe( 'with multiple scopes', function() {
-		var obj;
-		describe( 'in scope default', function() {
-			before( function() {
-				obj = { x: 1 };
-				fount.register( 'o', function() {
-					return obj;
-				}, 'scoped' );
-
-				fount.register( 'getX', [ 'o' ], function( o ) {
-					return o.x;
-				}, 'scoped' );
-			} );
-
-			it( 'should resolve correctly', function() {
-				return fount.resolve( [ 'o', 'getX' ] )
-					.should.eventually.eql( { 'o': { x: 1 }, 'getX': 1 } );
-			} );
-		} );
-
-		describe( 'in scope custom', function() {
-			before( function() {
-				obj.x = 10;
-			} );
-
-			it( 'should resolve indepedent results', function() {
-				fount.resolve( [ 'o', 'getX' ], 'custom' )
-					.should.eventually.eql( { 'o': { x: 10 }, 'getX': 10 } );
-			} );
-		} );
-
-		describe( 'back to default', function() {
-			it( 'should resolve original scoped results', function() {
-				fount.resolve( [ 'o', 'getX' ] )
-					.should.eventually.eql( { 'o': { x: 1 }, 'getX': 1 } );
-			} );
-		} );
-	} );
-
-	describe( 'with factory lifecycle', function() {
-		var obj;
-		describe( 'in scope default', function() {
-			var results;
-
-			before( function() {
-				obj = { x: 1 };
-				fount.register( 'o2', function() {
-					return obj;
-				}, 'factory' );
-				fount.register( 'getX2', [ 'o2' ], function( o ) {
-					return o.x;
-				}, 'factory' );
-			} );
-
-			it( 'should resolve correctly', function() {
-				fount.resolve( [ 'o2', 'getX2' ] )
-					.should.eventually.eql( { 'o2': { x: 1 }, 'getX2': 1 } );
-			} );
-		} );
-
-		describe( 'after changing property', function() {
-			before( function() {
-				obj.x = 10;
-			} );
-
-			it( 'should resolve to new result showing change', function() {
-				return fount.resolve( [ 'o2', 'getX2' ] )
-					.should.eventually.eql( { 'o2': { x: 10 }, 'getX2': 10 } );
-			} );
-		} );
-	} );
-} );
-
-describe( 'when injecting', function() {
-	var aObj;
-	var b;
-	var c;
-	var dObj;
-	var d;
-	var e;
+	var c = function( a, b ) {
+		return a.value + b;
+	};
+	var dObj = { value: 5 };
+	var d = function() {
+		return dVal;
+	};
+	var e = function( c, d ) {
+		return c * d.value;
+	};
 
 	before( function() {
 		aObj = { value: 1 };
@@ -358,37 +384,35 @@ describe( 'when injecting', function() {
 			} );
 		} );
 	} );
-} );
 
-describe( 'when injecting without dependency array', function() {
-	before( function() {
-		fount.purgeAll();
-		fount.register( 'one', 1 );
-		fount.register( 'two', function() {
-			return 2;
-		} );
-		fount.register( 'three', when( 3 ) );
-	} );
-
-	describe( 'with a dependency of each type', function() {
-		var results;
-
+	describe( 'when injecting without dependency array', function() {
 		before( function() {
-			return fount.inject( function( one, two, three ) {
-				results = [ one, two, three ];
+			fount.purgeAll();
+			fount.register( 'one', 1 );
+			fount.register( 'two', function() {
+				return 2;
+			} );
+			fount.register( 'three', when( 3 ) );
+		} );
+
+		describe( 'with a dependency of each type', function() {
+			var results;
+			before( function() {
+				return fount.inject( function( one, two, three ) {
+					results = [ one, two, three ];
+				} );
+			} );
+
+			it( 'should return array of correct values', function() {
+				results.should.eql( [ 1, 2, 3 ] );
 			} );
 		} );
-
-		it( 'should return array of correct values', function() {
-			results.should.eql( [ 1, 2, 3 ] );
-		} );
 	} );
 } );
 
-describe( 'when using custom containers', function() {
+describe( 'Custom Containers', function() {
 	describe( 'when resolving values', function() {
 		var results;
-
 		before( function() {
 			fount.register( 'x', 50 );
 			fount( 'one' ).register( 'x', 100 );
@@ -410,7 +434,6 @@ describe( 'when using custom containers', function() {
 
 	describe( 'when resolving a list across containers', function() {
 		var results;
-
 		before( function() {
 			fount.purgeAll();
 			fount.register( 'x', 50 );
@@ -428,81 +451,95 @@ describe( 'when using custom containers', function() {
 	} );
 } );
 
-describe( "When purging", function() {
-	describe( "a container", function() {
-		before( function() {
-			fount( 'urge' ).register( 'toPurge', true );
-			fount.purge( 'urge' );
+describe( 'NPM Dependencies', function() {
+
+	describe( 'when require cache has dependency', function() {
+		describe( 'with static dependency', function() {
+			it( 'should successfully register as static', function() {
+				return fount.resolve( 'postal' ).should.eventually.equal( postal );
+			} );
 		} );
-		// This tests the current behavior - though we might
-		// want to throw OR reject with a custom error
-		it( "should throw when trying to resolve after purging", function() {
-			( function() {
-				fount.resolve( 'urge.toPurge' );
-			} ).should.throw( /Object #<Object> has no method/ );
+		describe( 'with missing library', function() {
+			it( 'should provide a meaningful error', function() {
+				should.throw( function() {
+					fount.resolve( 'wascally' );
+				}, 'Fount could not resolve the following dependencies: wascally' );
+			} );
 		} );
 	} );
 
-	describe( "a container and scope", function() {
-		var scopeVal;
-		before( function() {
-			var obj = { scopeCount: 0 };
-			fount( 'urge' ).register(
-				'toPurge',
-				(function() {
-					obj.scopeCount += 1;
-					return obj;
-				}),
-				'scoped'
-			);
-			return fount.resolve( 'urge.toPurge' )
-				.then( function( res ) {
-					return fount.resolve( 'urge.toPurge', 'purgeyPurgePurge' )
-						.then( function( res ) {
-							scopeVal = res;
-							fount.purgeScope( 'urge', 'purgeyPurgePurge' );
-						} );
-				} );
-
+	describe( 'when require cache does not have dependency', function() {
+		describe( 'with factory dependency', function() {
+			it( 'should successfully register as factory', function() {
+				return fount.resolve( 'whistlepunk' )
+					.should.eventually.equal( require( 'whistlepunk' ) );
+			} );
 		} );
-		it( "should purge the scoped value", function() {
-			return fount.resolve( 'urge.toPurge' )
-				.should.eventually.eql( { scopeCount: 1 } )
-				.then( function( res ) {
-					scopeVal.should.eql( { scopeCount: 2 } );
-				} );
-		} );
-	} );
-
-	describe( "everything", function() {
-		before( function() {
-			fount( 'urge' ).register( 'toPurge', true );
-			fount( 'neat' ).register( 'toDelete', true );
-			fount.purgeAll();
-		} );
-		it( "should throw when trying to resolve after purging", function() {
-			( function() {
-				fount.resolve( 'urge.toPurge' );
-			} ).should.throw( /Object #<Object> has no method/ );
-			( function() {
-				fount.resolve( 'neat.toDelete' );
-			} ).should.throw( /Object #<Object> has no method/ );
+		describe( 'with missing library', function() {
+			it( 'should provide a meaningful error', function() {
+				should.throw( function() {
+					fount.resolve( 'wascally' );
+				}, 'Fount could not resolve the following dependencies: wascally' );
+			} );
 		} );
 	} );
 } );
 
-describe( "utilities", function() {
-	describe( "when calling log", function() {
-		var logSpy;
-		before( function() {
-			logSpy = sinon.spy( console, "log" );
-			fount.log();
+describe( 'Hash Configuration', function() {
+	before( function() {
+		fount.purgeAll();
+
+		fount( {
+			default: {
+				a: 1,
+				b: function() {
+					return 2;
+				}
+			},
+			other: {
+				c: { scoped: 3 },
+				d: { scoped: function() {
+						return 4;
+					}
+				},
+				e: { static: 5 },
+				f: { factory: function() {
+						return 6;
+					} }
+			}
 		} );
-		after( function() {
-			logSpy.restore();
+	} );
+
+	it( 'should resolve all defined keys', function() {
+		return fount.resolve( [ 'a', 'b', 'other.c', 'other.d', 'other.e', 'other.f' ] )
+			.should.eventually.eql( {
+			a: 1,
+			b: 2,
+			'other.c': 3,
+			'other.d': 4,
+			'other.e': 5,
+			'other.f': 6
 		} );
-		it( "should have called console.log", function() {
-			logSpy.should.have.been.calledOnce;
+	} );
+
+	it( 'should inject all defined keys', function() {
+		return fount.inject( function( a, b, other_c, other_d, other_e, other_f ) {
+			return {
+				a: a,
+				b: b,
+				'other.c': other_c,
+				'other.d': other_d,
+				'other.e': other_e,
+				'other.f': other_f
+			};
+		} )
+			.should.eventually.eql( {
+			a: 1,
+			b: 2,
+			'other.c': 3,
+			'other.d': 4,
+			'other.e': 5,
+			'other.f': 6
 		} );
 	} );
 } );

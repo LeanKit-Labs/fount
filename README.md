@@ -141,6 +141,14 @@ fount.resolve( [ 'a.one', 'b.two' ] ).then( function( results ) {
 } );
 ```
 
+You can also check in advance whether or not fount is able to resolve a dependency using `canResolve`:
+
+```javascript
+fount.canResolve( 'key1' );
+
+fount.canResolve( [ 'key1', 'key2' ] );
+```
+
 ## Injecting
 Injecting is how you get fount to invoke a function on your behalf with resolved dependencies. If you're familiar with AMD, it's somewhat similar to how define works.
 
@@ -153,6 +161,46 @@ fount.inject( [ 'a', 'b' ], function( a, b )  { ... }, 'myScope' );
 
 // using keys across multiple containers
 fount.inject( [ 'one.a', 'two.b' ], function( a, b ) { ... } );
+
+// alternate support for multiple containers
+fount.inject( function( one_a, two_b ) { ... } );
+```
+
+## Configuration
+Configuration of multiple containers, keys and values can be accomplished via a configuration hash passed to fount. The format of the hash is as follows:
+
+```javascript
+{
+	[containerName]: {
+		[keyName]: [value],
+		[keyName]: {
+			[scope]: [value]
+		}
+	}
+}
+```
+
+__example__
+```javascript
+fount( {
+	default: {
+		a: 1,
+		b: function() {
+			return 2;
+		}
+	},
+	other: {
+		c: { scoped: 3 },
+		d: { scoped: function() {
+				return 4;
+			}
+		},
+		e: { static: 5 },
+		f: { factory: function() {
+				return 6;
+			} }
+	}
+} );
 ```
 
 ## Diagnostic
@@ -163,6 +211,3 @@ Right now this is pretty weak, but if you call `log`, Fount will dump the contai
 * Running `gulp` starts both the `test` and `watch` tasks, so you'll see the tests re-run any time you save a file under `src/` or `spec/`.
 * Running `gulp coverage` will run istanbul and create a `coverage/` folder.
 * Running `gulp show-coverage` will run istanbul and open the browser-based coverage report.
-
-## Things to do soon
- * Good error handling - returning clear error messages when a resolution/injection fails
