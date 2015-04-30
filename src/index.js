@@ -213,7 +213,6 @@ function register() {
 		key = parts[ 1 ];
 	}
 
-
 	if ( _.isFunction( fn ) ) {
 		dependencies = checkDependencies( fn, dependencies );
 	} else {
@@ -302,7 +301,7 @@ var wrappers = {
 				return resolvedTo;
 			};
 			if ( cache[ key ] ) {
-				return cache[ key ];
+				return when.resolve( cache[ key ] );
 			} else if ( _.isFunction( value ) && dependencies && canResolve( containerName, dependencies, scopeName ) ) {
 				var args = dependencies.map( function( key ) {
 					return resolve( containerName, key, scopeName );
