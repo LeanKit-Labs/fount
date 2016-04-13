@@ -1,3 +1,10 @@
+## 0.2.x
+
+### 0.2.0
+
+ * bug fix - inject and resolve across multiple containers now works correctly
+ * functions that can't be resolved in static or scoped lifecycles immediately will be once all dependencies become available
+
 ## 0.1.X
 
 ### 0.1.1

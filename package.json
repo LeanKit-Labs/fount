@@ -1,6 +1,6 @@
 {
   "name": "fount",
-  "version": "0.1.0",
+  "version": "0.2.0-1",
   "description": "A source from which dependencies flow",
   "main": "./src/index.js",
   "scripts": {
@@ -33,6 +33,7 @@
     "chai-as-promised": "~4.3.0",
     "gulp": "~3.8.11",
     "postal": "^1.0.2",
-    "sinon": "~1.14.1"
+    "sinon": "~1.14.1",
+    "whistlepunk": "^0.3.3"
   }
 }

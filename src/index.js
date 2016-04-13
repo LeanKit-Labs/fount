@@ -235,12 +235,13 @@ function resolve( containerName, key, scopeName ) {
 		var ctr = container( containerName );
 		key.forEach( function( k ) {
 			var originalKey = k;
+			var effectiveContainer = ctr;
 			var parts = k.split( /[._]/ );
 			if ( parts.length > 1 ) {
-				ctr = container( parts[ 0 ] );
+				effectiveContainer = container( parts[ 0 ] );
 				k = parts[ 1 ];
 			}
-			hash[ originalKey ] = ctr[ k ]( scopeName );
+			hash[ originalKey ] = effectiveContainer[ k ]( scopeName );
 		} );
 		return whenKeys.all( hash );
 	} else {
@@ -302,11 +303,31 @@ var wrappers = {
 			};
 			if ( cache[ key ] ) {
 				return when.resolve( cache[ key ] );
-			} else if ( _.isFunction( value ) && dependencies && canResolve( containerName, dependencies, scopeName ) ) {
-				var args = dependencies.map( function( key ) {
-					return resolve( containerName, key, scopeName );
-				} );
-				return whenFn.apply( value, args ).then( store );
+			} else if ( _.isFunction( value ) ) {
+				if( dependencies && canResolve( containerName, dependencies, scopeName ) ) {
+					var args = dependencies.map( function( key ) {
+						return resolve( containerName, key, scopeName );
+					} );
+					return whenFn.apply( value, args ).then( store );
+				} else {
+					var resolvedValue;
+					return function() {
+						if( resolvedValue ) {
+							return when( resolvedValue );
+						} else {
+							return when.promise( function( res ) {
+								if( dependencies && canResolve( containerName, dependencies ) ) {
+									var args = dependencies.map( function( key ) {
+										return resolve( containerName, key, scopeName );
+									} );
+									res( whenFn.apply( value, args ).then( store ) );
+								} else {
+									res( value );
+								}
+							} );
+						}
+					};
+				}
 			} else {
 				return when.promise( function( resolve ) {
 					if ( when.isPromiseLike( value ) ) {
@@ -321,11 +342,35 @@ var wrappers = {
 	},
 	static: function( containerName, key, value, dependencies ) {
 		var promise;
-		if ( _.isFunction( value ) && dependencies && canResolve( containerName, dependencies ) ) {
-			var args = dependencies.map( function( key ) {
-				return resolve( containerName, key );
-			} );
-			promise = whenFn.apply( value, args );
+		if ( _.isFunction( value ) ) {
+			if( dependencies && canResolve( containerName, dependencies ) ) {
+				var args = dependencies.map( function( key ) {
+					return resolve( containerName, key );
+				} );
+				promise = whenFn.apply( value, args );
+			} else {
+				var resolvedValue;
+				return function() {
+					if( resolvedValue ) {
+						return when( resolvedValue );
+					} else {
+						return when.promise( function( res ) {
+							if( dependencies && canResolve( containerName, dependencies ) ) {
+								var args = dependencies.map( function( key ) {
+									return resolve( containerName, key );
+								} );
+								whenFn.apply( value, args )
+									.then( function( x ) {
+										resolvedValue = x;
+										res( x );
+									} );
+							} else {
+								res( value );
+							}
+						} );
+					}
+				};
+			}
 		} else {
 			promise = ( value && value.then ) ? value : when( value );
 		}

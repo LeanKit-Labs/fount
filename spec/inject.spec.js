@@ -178,6 +178,20 @@ describe( 'Injecting', function() {
 				result.should.equal( 20 );
 			} );
 		} );
+
+		describe( 'when injecting from multiple containers', function() {
+			before( function() {
+				fount.register( 'three.a', 3 );
+				fount( 'three' ).register( 'b', 4 );
+				fount.register( 'four.c', 5 );
+			} );
+
+			it( 'should resolve to correct values', function() {
+				fount.inject( [ 'three.a', 'three.b', 'four.c' ], function( x, y, z ) {
+					return x + y + z;
+				} ).should.eventually.eql( 12 );
+			} );
+		} );
 	} );
 
 	describe( 'when injecting without dependency array', function() {
@@ -200,6 +214,21 @@ describe( 'Injecting', function() {
 
 			it( 'should return array of correct values', function() {
 				results.should.eql( [ 1, 2, 3 ] );
+			} );
+		} );
+
+		describe( 'when resolving across multiple containers', function() {
+			before( function() {
+				fount.register( 'three.a', 3 );
+				fount( 'three' ).register( 'b', 4 );
+				fount( 'three' ).register( 'c', 4.5 );
+				fount.register( 'four.c', 5 );
+			} );
+
+			it( 'should resolve correct values', function() {
+				fount.inject( function( three_a, three_b, four_c ) {
+					return three_a + three_b + four_c;
+				} ).should.eventually.eql( 12 );
 			} );
 		} );
 	} );
