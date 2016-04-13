@@ -1,5 +1,9 @@
 ## 0.1.X
 
+### 0.1.1
+
+ * #10 - Calls to previously resolved scope/key pairs return promises for consistency
+
 ### 0.1.0
 
  * #7 - Add better error reporting - include all unresolvable keys
