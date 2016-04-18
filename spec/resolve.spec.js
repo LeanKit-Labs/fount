@@ -256,6 +256,10 @@ describe( 'Resolving', function() {
 				it( 'should not resolve missing dependency', function() {
 					fount.canResolve( 'unmet' ).should.equal( false );
 				} );
+
+				it( 'should not resolve missing dependency in non-default container from NPM', function() {
+					fount.canResolve( "special.when" ).should.equal( false );
+				} );
 			} );
 		} );
 

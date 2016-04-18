@@ -4,6 +4,7 @@
 
  * bug fix - inject and resolve across multiple containers now works correctly
  * functions that can't be resolved in static or scoped lifecycles immediately will be once all dependencies become available
+ * don't backfill dependencies from NPM for non-default containers
 
 ## 0.1.X
 

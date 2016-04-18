@@ -11,7 +11,7 @@ var parent;
 var getDisplay = process.env.DEBUG ? displayDependency : _.noop;
 
 function backfillMissingDependency( name, containerName ) {
-	var mod = getLoadedModule( name ) || getModuleFromInstalls( name );
+	var mod = getLoadedModule( name ) || ( containerName === "default" ? getModuleFromInstalls( name ) : null );
 	if ( mod ) {
 		var lifecycle = _.isFunction( mod ) ? 'factory' : 'static';
 		register( containerName, name, mod, lifecycle );

@@ -1,6 +1,6 @@
 {
   "name": "fount",
-  "version": "0.2.0-1",
+  "version": "0.2.0-2",
   "description": "A source from which dependencies flow",
   "main": "./src/index.js",
   "scripts": {
