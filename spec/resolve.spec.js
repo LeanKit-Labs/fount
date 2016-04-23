@@ -53,18 +53,37 @@ describe( 'Resolving', function() {
 	describe( 'when resolving functions', function() {
 
 		describe( 'without dependencies', function() {
-			before( function() {
-				fount.register( 'simpleFn', function() {
-					return 'hello, world!';
+			describe( 'when registered normally', function() {
+				before( function() {
+					fount.register( 'simpleFn', function() {
+						return 'hello, world!';
+					} );
+				} );
+
+				it( 'should resolve the function\'s result', function() {
+					this.timeout( 100 );
+					fount.resolve( 'simpleFn' )
+						.should.eventually.equal( 'hello, world!' );
 				} );
 			} );
 
-			it( 'should resolve the function\'s result', function() {
-				this.timeout( 100 );
-				fount.resolve( 'simpleFn' )
-					.should.eventually.equal( 'hello, world!' );
+			describe( 'when registered as a value', function() {
+				before( function() {
+					fount.registerAsValue( 'simpleFn2', function() {
+						return 'hello, world!';
+					} );
+				} );
+
+				it( 'should resolve to the function', function() {
+					this.timeout( 100 );
+					fount.resolve( 'simpleFn2' )
+						.then( function( fn ) { return fn(); } )
+						.should.eventually.equal( 'hello, world!' );
+				} );
 			} );
 		} );
+
+
 
 		describe( 'with dependency on a list', function() {
 			before( function() {

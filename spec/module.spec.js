@@ -6,6 +6,10 @@ describe( 'NPM Dependencies', function() {
 
 	describe( 'when require cache has dependency', function() {
 		describe( 'with static dependency', function() {
+			before( function() {
+				fount.registerModule( 'postal' );
+			} );
+
 			it( 'should successfully register as static', function() {
 				return fount.resolve( 'postal' ).should.eventually.equal( postal );
 			} );
@@ -21,6 +25,10 @@ describe( 'NPM Dependencies', function() {
 
 	describe( 'when require cache does not have dependency', function() {
 		describe( 'with factory dependency', function() {
+			before( function() {
+				fount.registerModule( 'whistlepunk' );
+			} );
+
 			it( 'should successfully register as factory', function() {
 				return fount.resolve( 'whistlepunk' )
 					.should.eventually.equal( require( 'whistlepunk' ) );

@@ -10,17 +10,6 @@ var containers = {};
 var parent;
 var getDisplay = process.env.DEBUG ? displayDependency : _.noop;
 
-function backfillMissingDependency( name, containerName ) {
-	var mod = getLoadedModule( name ) || ( containerName === "default" ? getModuleFromInstalls( name ) : null );
-	if ( mod ) {
-		var lifecycle = _.isFunction( mod ) ? 'factory' : 'static';
-		register( containerName, name, mod, lifecycle );
-	} else {
-		debug( 'Could not backfill dependency %s in in container %s', name, containerName );
-	}
-	return mod;
-}
-
 function canResolve( containerName, dependencies, scopeName ) {
 	return getMissingDependencies( containerName, dependencies, scopeName ).length === 0;
 }
@@ -140,7 +129,7 @@ function getMissingDependencies( containerName, dependencies, scopeName ) {
 					ctrName = parts[ 0 ];
 					k = parts[ 1 ];
 				}
-				if ( !ctr[ k ] && !backfillMissingDependency( key, ctrName ) ) {
+				if ( !ctr[ k ] ) {
 					acc.push( originalKey );
 				}
 			} );
@@ -151,7 +140,7 @@ function getMissingDependencies( containerName, dependencies, scopeName ) {
 				containerName = parts[ 0 ];
 				key = parts[ 1 ];
 			}
-			if ( !container( containerName )[ key ] && !backfillMissingDependency( key, containerName ) ) {
+			if ( !container( containerName )[ key ] ) {
 				acc.push( originalKey );
 			}
 		}
@@ -222,6 +211,21 @@ function register() {
 		key, containerName, lifecycle, getDisplay( fn ) );
 	var promise = wrappers[ lifecycle ]( containerName, key, fn, dependencies );
 	container( containerName )[ key ] = promise;
+}
+
+function registerModule( containerName, name ) {
+	var mod = getLoadedModule( name ) ||  getModuleFromInstalls( name );
+	if ( mod ) {
+		var lifecycle = _.isFunction( mod ) ? 'factory' : 'static';
+		register( containerName, name, mod, lifecycle );
+	} else {
+		debug( 'Fount could not find NPM module %s', name );
+	}
+	return mod;
+}
+
+function registerAsValue( containerName, key, val ) {
+	return register( containerName, key, function() { return val; } );
 }
 
 function resolve( containerName, key, scopeName ) {
@@ -388,8 +392,10 @@ var fount = function( containerName ) {
 			canResolve: canResolve.bind( undefined, containerName ),
 			inject: inject.bind( undefined, containerName ),
 			register: register.bind( undefined, containerName ),
+			registerModule: registerModule.bind( undefined, containerName ),
+			registerAsValue: registerAsValue.bind( undefined, containerName ),
 			resolve: resolve.bind( undefined, containerName ),
-			purge: purgeScope.bind( undefined, containerName ),
+			purge: purge.bind( undefined, containerName ),
 			purgeScope: purgeScope.bind( undefined, containerName )
 		};
 	}
@@ -398,6 +404,8 @@ var fount = function( containerName ) {
 fount.canResolve = canResolve.bind( undefined, 'default' );
 fount.inject = inject.bind( undefined, 'default' );
 fount.register = register.bind( undefined, 'default' );
+fount.registerModule = registerModule.bind( undefined, 'default' );
+fount.registerAsValue = registerAsValue.bind( undefined, 'default' );
 fount.resolve = resolve.bind( undefined, 'default' );
 fount.purge = purge.bind( undefined );
 fount.purgeAll = purgeAll;
