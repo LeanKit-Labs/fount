@@ -1,3 +1,13 @@
+## 0.2.x
+
+### 0.2.0
+ * bug fix - inject and resolve across multiple containers now works correctly
+ * improvement - functions that can't be resolved in static or scoped lifecycles immediately will be once all dependencies become available
+ * feature - add a way to register function as value without a wrapper
+ * NPM modules
+ 	* don't auto-backfill dependencies from NPM anymore, it's kinda gross
+ 	* provide ability to grab an "ambient" module from the require cache
+
 ## 0.1.X
 
 ### 0.1.1

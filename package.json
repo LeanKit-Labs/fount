@@ -1,6 +1,6 @@
 {
   "name": "fount",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A source from which dependencies flow",
   "main": "./src/index.js",
   "scripts": {
@@ -17,7 +17,7 @@
     "injection"
   ],
   "author": "Alex Robson",
-  "license": "MIT License (http://opensource.org/licenses/MIT)",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/LeanKit-Labs/fount/issues"
   },
@@ -33,6 +33,7 @@
     "chai-as-promised": "~4.3.0",
     "gulp": "~3.8.11",
     "postal": "^1.0.2",
-    "sinon": "~1.14.1"
+    "sinon": "~1.14.1",
+    "whistlepunk": "^0.3.3"
   }
 }

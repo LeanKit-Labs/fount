@@ -53,18 +53,37 @@ describe( 'Resolving', function() {
 	describe( 'when resolving functions', function() {
 
 		describe( 'without dependencies', function() {
-			before( function() {
-				fount.register( 'simpleFn', function() {
-					return 'hello, world!';
+			describe( 'when registered normally', function() {
+				before( function() {
+					fount.register( 'simpleFn', function() {
+						return 'hello, world!';
+					} );
+				} );
+
+				it( 'should resolve the function\'s result', function() {
+					this.timeout( 100 );
+					fount.resolve( 'simpleFn' )
+						.should.eventually.equal( 'hello, world!' );
 				} );
 			} );
 
-			it( 'should resolve the function\'s result', function() {
-				this.timeout( 100 );
-				fount.resolve( 'simpleFn' )
-					.should.eventually.equal( 'hello, world!' );
+			describe( 'when registered as a value', function() {
+				before( function() {
+					fount.registerAsValue( 'simpleFn2', function() {
+						return 'hello, world!';
+					} );
+				} );
+
+				it( 'should resolve to the function', function() {
+					this.timeout( 100 );
+					fount.resolve( 'simpleFn2' )
+						.then( function( fn ) { return fn(); } )
+						.should.eventually.equal( 'hello, world!' );
+				} );
 			} );
 		} );
+
+
 
 		describe( 'with dependency on a list', function() {
 			before( function() {
@@ -95,8 +114,45 @@ describe( 'Resolving', function() {
 			} );
 
 			it( 'should resolve function\'s dependencies', function() {
-				fount.resolve( 'line' )
+				return fount.resolve( 'line' )
 					.should.eventually.equal( 'easy as 1, 2, 3!' );
+			} );
+		} );
+
+		describe( 'with initially unmet dependencies', function() {
+			var calls = 0;
+			function delayed( a2, b2, c2 ) {
+				calls ++;
+				return a2 + b2 + c2;
+			}
+			before( function() {
+				fount.register( 'delayed', delayed );
+			} );
+
+			it( 'should resolve to the function if called before dependencies are registered', function() {
+				return fount.resolve( 'delayed' )
+					.should.eventually.eql( delayed );
+			} );
+
+			describe( 'after dependencies are registered', function() {
+				before( function() {
+					fount.register( 'a2', 1 );
+					fount.register( 'b2', 10 );
+					fount.register( 'c2', 100 );
+				} );
+
+				it( 'should resolve to function result', function() {
+					return fount.resolve( 'delayed' )
+						.should.eventually.eql( 111 );
+				} );
+
+				it( 'should not call function after initial resolution', function() {
+					return fount.resolve( 'delayed' )
+						.then( function () {
+							return calls;
+						} )
+						.should.eventually.eql( 1 );
+				} );
 			} );
 		} );
 
@@ -106,7 +162,7 @@ describe( 'Resolving', function() {
 			} );
 
 			it( 'should resolve to original value', function() {
-				fount.resolve( 'line' )
+				return fount.resolve( 'line' )
 					.should.eventually.equal( 'easy as 1, 2, 3!' );
 			} );
 		} );
@@ -132,7 +188,6 @@ describe( 'Resolving', function() {
 			} );
 		} );
 
-
 		describe( 'with multiple scopes', function() {
 			var obj = { x: 1 };
 			describe( 'in scope default', function() {
@@ -147,7 +202,7 @@ describe( 'Resolving', function() {
 				} );
 
 				it( 'should resolve correctly', function() {
-					fount.resolve( [ 'o', 'getX' ] )
+					return fount.resolve( [ 'o', 'getX' ] )
 						.should.eventually.eql( { 'o': { x: 1 }, 'getX': 1 } );
 				} );
 			} );
@@ -158,14 +213,14 @@ describe( 'Resolving', function() {
 				} );
 
 				it( 'should resolve indepedent results', function() {
-					fount.resolve( [ 'o', 'getX' ], 'custom' )
+					return fount.resolve( [ 'o', 'getX' ], 'custom' )
 						.should.eventually.eql( { 'o': { x: 10 }, 'getX': 10 } );
 				} );
 			} );
 
 			describe( 'back to default', function() {
 				it( 'should resolve original scoped results', function() {
-					fount.resolve( [ 'o', 'getX' ] )
+					return fount.resolve( [ 'o', 'getX' ] )
 						.should.eventually.eql( { 'o': { x: 1 }, 'getX': 1 } );
 				} );
 			} );
@@ -205,6 +260,12 @@ describe( 'Resolving', function() {
 				var result;
 				before( function() {
 					fount.register( 'met', 'true' );
+					fount.register( 'one.a', 1 );
+					fount( 'two' ).register( 'b', 2 );
+				} );
+
+				it( 'should correctly resolve a check across multiple containers', function() {
+					fount.canResolve( [ 'one.a', 'two.b' ] ).should.equal( true );
 				} );
 
 				it( 'should resolve existing dependency', function() {
@@ -213,6 +274,10 @@ describe( 'Resolving', function() {
 
 				it( 'should not resolve missing dependency', function() {
 					fount.canResolve( 'unmet' ).should.equal( false );
+				} );
+
+				it( 'should not resolve missing dependency in non-default container from NPM', function() {
+					fount.canResolve( "special.when" ).should.equal( false );
 				} );
 			} );
 		} );
@@ -224,5 +289,28 @@ describe( 'Resolving', function() {
 				}, 'Fount could not resolve the following dependencies: lol, rofl' );
 			} );
 		} );
+	} );
+
+	describe( 'when resolving across multiple containers', function() {
+		before( function() {
+			fount.register( 'three.a', 3 );
+			fount( 'three' ).register( 'b', 4 );
+			fount( 'three' ).register( 'c', 4.5 );
+			fount.register( 'four.c', 5 );
+		} );
+
+		it( 'should resolve correct values', function() {
+			fount.resolve( [ 'three.a', 'three.b', 'four.c' ], function( results ) {
+				return results;
+			} ).should.eventually.eql( {
+				'three.a': 3,
+				'three.b': 4,
+				'four.c': 5
+			} );
+		} );
+	} );
+
+	after( function() {
+		fount.purgeAll();
 	} );
 } );

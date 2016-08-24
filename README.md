@@ -113,6 +113,14 @@ You may want to register a function as a value (confused yet?) so that fount ret
 fount.register( 'calculator', function() { return function( x, y ) { return x + y; }; } );
 ```
 
+__OR__
+
+```javascript
+// this really is just wrapping the value in a function like above, but it's easier to read
+// and hopefully less frustrating
+fount.registerAsValue( 'calculator', function( x, y ) { return x + y; } );
+```
+
 ### promise
 Registering a promise looks almost identical to registering a function. From a consuming perspective, they're functionally equivalent since fount will wrap raw function execution in a promise anyway.
 
@@ -120,6 +128,23 @@ Registering a promise looks almost identical to registering a function. From a c
 fount.register( 'todo', when.promise( function( reject, resolve ) {
 	resolve( 'done' );
 } ) );
+```
+
+### NPM modules
+Fount will allow you to plug in an NPM module. If the module was previously loaded, it will grab it from the require cache, otherwise, it will attempt to load it from the modules folder:
+
+> Note: this method will register modules that return a function as a factory which will be invoked anytime the module is resolved as a dependency
+
+```javascript
+fount.registerModule( "when" );
+```
+
+In the example above, where `when` is regsitered, fount will see that it is a function and register it as a factory. During resolve time, because fount cannot resolve the argument list for `when`'s function, it will simply provide the `when` function as the value.
+
+```javascript
+fount.inject( function( when ) {
+	return when( "this works as you'd expect" );
+} );
 ```
 
 ## Resolving
@@ -201,6 +226,32 @@ fount( {
 			} }
 	}
 } );
+```
+
+## Purge
+Fount provides three different ways to clean up:
+ * ejecting all keys and resolved scope values from all containers
+ * ejecting all keys and resolved scope values from one container
+ * removing all resolved scoped values from one container
+
+> Note: purge doesn't support the `_` or `.` delimited syntax for containers. When purging non-default containers, select the container first like in the examples below:
+
+```javascript
+// this is like starting from scratch:
+fount.purgeAll();
+
+// remove all values for the default container's custom scope
+// this does not remove the keys, just their resolved values
+fount.purgeScope( "custom" );
+
+// eject all keys from the default container
+fount.purge();
+
+// remove all values for the myContainer's custom scope
+fount( "myContainer" ).purgeScope( "custom" );
+
+// eject all keys from myContainer
+fount( "myContainer" ).purge();
 ```
 
 ## Diagnostic
