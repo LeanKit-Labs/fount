@@ -145,6 +145,21 @@ describe( 'Injecting', function() {
 				result.should.equal( 'Who\'s a good boy? YOU are!' );
 			} );
 		} );
+
+		describe( 'when injecting from complex namespaces', function() {
+			var result;
+			before( function() {
+				fount.register( 'one.two.three', 123 );
+				fount.register( 'one.two.five', 125 );
+				return fount.inject( [ 'one.two.three', 'one.two.five' ], function( x, y ) {
+					result = x + y;
+				} );
+			} );
+
+			it( 'should correctly inject dependencies', function() {
+				result.should.equal( 248 );
+			} );
+		} );
 	} );
 
 	describe( 'with factory dependencies', function() {

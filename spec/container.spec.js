@@ -28,7 +28,7 @@ describe( 'Custom Containers', function() {
 		before( function() {
 			fount.purgeAll();
 			fount.register( 'x', 50 );
-			fount( 'one' ).register( 'one.x', 100 );
+			fount( 'one' ).register( 'x', 100 );
 			fount( 'two' ).register( 'x', 200 );
 			return fount.resolve( [ 'x', 'one.x', 'two.x' ] )
 				.then( function( value ) {

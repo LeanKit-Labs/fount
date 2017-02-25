@@ -1,9 +1,15 @@
+## 1.x.x
+
+### 1.0.0
+
+Proposed official release:
+
+ * enables multi-level namespaces
+ * attempts to clean up some of the functions and eliminate repeated logic
+
 ## 0.2.x
 
 ### 0.2.0
-
-
-
  * bug fix - inject and resolve across multiple containers now works correctly
  * improvement - functions that can't be resolved in static or scoped lifecycles immediately will be once all dependencies become available
  * feature - add a way to register function as value without a wrapper
@@ -12,8 +18,6 @@
  	* provide ability to grab an "ambient" module from the require cache
 
 ## 0.1.X
-
-### 0.1.1
 
  * #10 - Calls to previously resolved scope/key pairs return promises for consistency
 

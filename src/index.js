@@ -81,6 +81,19 @@ function findParent( mod ) {
 	}
 }
 
+function getContainerName( name, parts ) {
+	var lead = parts.slice( 0, -1 );
+	if( name === "default" ) {
+		return lead.join( '.' );
+	} else {
+		return ( [ name ].concat( lead ) ).join( '.' );
+	}
+}
+
+function getKey( parts ) {
+	return parts.slice( -1 )[ 0 ];
+}
+
 function getLoadedModule( name ) {
 	var parent = findParent( module );
 	var regex = new RegExp( name );
@@ -119,33 +132,28 @@ function getMissingDependencies( containerName, dependencies, scopeName ) {
 	dependencies = _.isArray( dependencies ) ? dependencies : [ dependencies ];
 	return _.reduce( dependencies, function( acc, key ) {
 		if ( _.isArray( key ) ) {
-			var ctr = container( containerName );
 			key.forEach( function( k ) {
-				var originalKey = k;
-				var ctrName = containerName;
-				var parts = k.split( /[._]/ );
-				if ( parts.length > 1 ) {
-					ctr = container( parts[ 0 ] );
-					ctrName = parts[ 0 ];
-					k = parts[ 1 ];
-				}
-				if ( !ctr[ k ] ) {
-					acc.push( originalKey );
-				}
+				pushMissingKey( containerName, k, acc );
 			} );
 		} else {
-			var originalKey = key;
-			var parts = key.split( /[._]/ );
-			if ( parts.length > 1 ) {
-				containerName = parts[ 0 ];
-				key = parts[ 1 ];
-			}
-			if ( !container( containerName )[ key ] ) {
-				acc.push( originalKey );
-			}
+			pushMissingKey( containerName, key, acc );
 		}
 		return acc;
 	}, [] );
+}
+
+function pushMissingKey( containerName, key, acc ) {
+	var originalKey = key;
+	var parts = key.split( /[._]/ );
+	if ( parts.length > 1 ) {
+		containerName = getContainerName( containerName, parts );
+		key = getKey( parts );
+	}
+	var hasKey = container( containerName )[ key ] != null;
+	if( !hasKey ) {
+		acc.push( originalKey );
+	}
+	return acc;
 }
 
 function inject( containerName, dependencies, fn, scopeName ) {
@@ -164,11 +172,12 @@ function inject( containerName, dependencies, fn, scopeName ) {
 
 	var args = dependencies.map( function( key ) {
 		var parts = key.split( /[._]/ );
+		var ctrName = containerName;
 		if ( parts.length > 1 ) {
-			containerName = parts[ 0 ];
-			key = parts[ 1 ];
+			ctrName = getContainerName( containerName, parts );
+			key = getKey( parts );
 		}
-		return resolve( containerName, key, scopeName );
+		return resolve( ctrName, key, scopeName );
 	} );
 	return whenFn.apply( fn, args );
 }
@@ -198,8 +207,8 @@ function register() {
 	var lifecycle = ( dependencies.length ? args[ 4 ] : args[ 3 ] ) || 'static';
 
 	if ( parts.length > 1 ) {
-		containerName = parts[ 0 ];
-		key = parts[ 1 ];
+		containerName = getContainerName( containerName, parts );
+		key = getKey( parts );
 	}
 
 	if ( _.isFunction( fn ) ) {
@@ -238,24 +247,21 @@ function resolve( containerName, key, scopeName ) {
 		var hash = {};
 		var ctr = container( containerName );
 		key.forEach( function( k ) {
-			var originalKey = k;
-			var effectiveContainer = ctr;
-			var parts = k.split( /[._]/ );
-			if ( parts.length > 1 ) {
-				effectiveContainer = container( parts[ 0 ] );
-				k = parts[ 1 ];
-			}
-			hash[ originalKey ] = effectiveContainer[ k ]( scopeName );
+			hash[ k ] = resolveKey( containerName, k, scopeName );
 		} );
 		return whenKeys.all( hash );
 	} else {
-		var parts = key.split( /[._]/ );
-		if ( parts.length > 1 ) {
-			containerName = parts[ 0 ];
-			key = parts[ 1 ];
-		}
-		return container( containerName )[ key ]( scopeName );
+		return resolveKey( containerName, key, scopeName );
 	}
+}
+
+function resolveKey( containerName, key, scopeName ) {
+	var parts = key.split( /[._]/ );
+	if ( parts.length > 1 ) {
+		containerName = getContainerName( containerName, parts );
+		key = getKey( parts );
+	}
+	return container( containerName )[ key ]( scopeName );
 }
 
 function scope( containerName, name ) {
