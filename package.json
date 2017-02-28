@@ -1,10 +1,10 @@
 {
   "name": "fount",
-  "version": "1.0.0-1",
+  "version": "1.0.0-2",
   "description": "A source from which dependencies flow",
   "main": "./src/index.js",
   "scripts": {
-    "test": "./node_modules/mocha/bin/mocha ./spec -w"
+    "test": "gulp test"
   },
   "repository": {
     "type": "git",

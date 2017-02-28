@@ -4,6 +4,7 @@
 
 Proposed official release:
 
+ * adds synchronous dependency resolution
  * enables multi-level namespaces
  * adds feature to get list of keys
  * removes when as a dependency

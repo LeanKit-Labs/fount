@@ -4,9 +4,10 @@ const util = require( 'util' );
 const path = require( 'path' );
 const fs = require( 'fs' );
 const getDisplay = process.env.DEBUG ? displayDependency : _.noop;
+const DEFAULT = 'default';
 
 let containers = {};
-var parent;
+let parent;
 
 function applyWhen( fn, args ) {
 	if( !args || args.length == 0 ) {
@@ -27,7 +28,7 @@ function canResolve( containerName, dependencies, scopeName ) {
 }
 
 function checkDependencies( fn, dependencies ) {
-	var fnString = fn.toString();
+	let fnString = fn.toString();
 	if ( /[(][^)]*[)]/.test( fnString ) ) {
 		return ( _.isFunction( fn ) && !dependencies.length ) ?
 			trim( /[(]([^)]*)[)]/.exec( fnString )[ 1 ].split( ',' ) ) :
@@ -40,8 +41,8 @@ function checkDependencies( fn, dependencies ) {
 function configure( config ) {
 	_.each( config, function( val, containerName ) {
 		_.each( val, function( opt, key ) {
-			var dependency = opt;
-			var lifecycle;
+			let dependency = opt;
+			let lifecycle;
 			if ( _.isObject( opt ) ) {
 				if ( opt.scoped ) {
 					lifecycle = 'scoped';
@@ -93,8 +94,43 @@ function findParent( mod ) {
 	}
 }
 
+function get( containerName, key, scopeName ) {
+	scopeName = scopeName || DEFAULT;
+	let missingKeys = getMissingDependencies( containerName, key, scopeName );
+	if ( missingKeys.length > 0 ) {
+		throw new Error( util.format( 'Fount could not resolve the following dependencies: %s', missingKeys.join( ', ' ) ) );
+	}
+	if ( _.isArray( key ) ) {
+		let ctr = container( containerName );
+		return key.reduce( ( acc, k ) => {
+			acc[ k ] = getValue( containerName, k, scopeName );
+			return acc;
+		}, {} );
+	} else {
+		return getValue( containerName, key, scopeName );
+	}
+}
+
+function getArguments( containerName, dependencies, fn, scopeName ) {
+	dependencies = checkDependencies( fn, dependencies );
+	let missingKeys = getMissingDependencies( containerName, dependencies, scopeName );
+	if ( missingKeys.length > 0 ) {
+		throw new Error( util.format( 'Fount could not resolve the following dependencies: %s', missingKeys.join( ', ' ) ) );
+	}
+
+	return dependencies.map( function( key ) {
+		let parts = key.split( /[._]/ );
+		let ctrName = containerName;
+		if ( parts.length > 1 ) {
+			ctrName = getContainerName( containerName, parts );
+			key = getKey( parts );
+		}
+		return get( ctrName, key, scopeName );
+	} );
+}
+
 function getContainerName( name, parts ) {
-	var lead = parts.slice( 0, -1 );
+	let lead = parts.slice( 0, -1 );
 	if( name === "default" ) {
 		return lead.join( '.' );
 	} else {
@@ -107,9 +143,9 @@ function getKey( parts ) {
 }
 
 function getLoadedModule( name ) {
-	var parent = findParent( module );
-	var regex = new RegExp( name );
-	var candidate = _.find( parent.children, function( child ) {
+	let parent = findParent( module );
+	let regex = new RegExp( name );
+	let candidate = _.find( parent.children, function( child ) {
 		return regex.test( child.id ) && _.contains( child.id.split( '/' ), name );
 	} );
 	if ( candidate ) {
@@ -121,12 +157,12 @@ function getLoadedModule( name ) {
 }
 
 function getModuleFromInstalls( name ) {
-	var parent = findParent( module );
-	var installPath = _.find( parent.paths, function( p ) {
-		var modPath = path.join( p, name );
+	let parent = findParent( module );
+	let installPath = _.find( parent.paths, function( p ) {
+		let modPath = path.join( p, name );
 		return fs.existsSync( modPath );
 	} );
-	var mod;
+	let mod;
 	if ( installPath ) {
 		mod = require( path.join( installPath, name ) );
 		mod.__npm = mod.__npm || true;
@@ -139,10 +175,10 @@ function getArgs( obj ) {
 }
 
 function getMissingDependencies( containerName, dependencies, scopeName ) {
-	scopeName = scopeName || 'default';
-	containerName = containerName || 'default';
+	scopeName = scopeName || DEFAULT;
+	containerName = containerName || DEFAULT;
 	dependencies = _.isArray( dependencies ) ? dependencies : [ dependencies ];
-	return _.reduce( dependencies, function( acc, key ) {
+	return dependencies.reduce( function( acc, key ) {
 		if ( _.isArray( key ) ) {
 			key.forEach( function( k ) {
 				pushMissingKey( containerName, k, acc );
@@ -154,34 +190,43 @@ function getMissingDependencies( containerName, dependencies, scopeName ) {
 	}, [] );
 }
 
-function inject( containerName, dependencies, fn, scopeName ) {
-	scopeName = scopeName || 'default';
+function getValue( containerName, key, scopeName ) {
+	let parts = key.split( /[._]/ );
+	if ( parts.length > 1 ) {
+		containerName = getContainerName( containerName, parts );
+		key = getKey( parts );
+	}
+	return container( containerName )[ key ]( scopeName );
+}
+
+function invoke( containerName, dependencies, fn, scopeName ) {
+	scopeName = scopeName || DEFAULT;
 	if ( _.isFunction( dependencies ) ) {
 		scopeName = fn;
 		fn = dependencies;
 		dependencies = [];
 	}
-	dependencies = checkDependencies( fn, dependencies );
-
-	var missingKeys = getMissingDependencies( containerName, dependencies, scopeName );
-	if ( missingKeys.length > 0 ) {
-		throw new Error( util.format( 'Fount could not resolve the following dependencies: %s', missingKeys.join( ', ' ) ) );
+	let args = getArguments( containerName, dependencies, fn, scopeName );
+	if( args.length == 0 ) {
+		return fn();
+	} else {
+		return fn.apply( null, args );
 	}
+}
 
-	var args = dependencies.map( function( key ) {
-		var parts = key.split( /[._]/ );
-		var ctrName = containerName;
-		if ( parts.length > 1 ) {
-			ctrName = getContainerName( containerName, parts );
-			key = getKey( parts );
-		}
-		return resolve( ctrName, key, scopeName );
-	} );
+function inject( containerName, dependencies, fn, scopeName ) {
+	scopeName = scopeName || DEFAULT;
+	if ( _.isFunction( dependencies ) ) {
+		scopeName = fn;
+		fn = dependencies;
+		dependencies = [];
+	}
+	let args = getArguments( containerName, dependencies, fn, scopeName );
 	return applyWhen( fn, args );
 }
 
 function isPromisey( x ) {
-	return x.then && typeof x.then == 'function'
+	return x && x.then && typeof x.then == 'function'
 }
 
 function listKeys( containerName ) {
@@ -205,13 +250,13 @@ function purgeScope( containerName, scopeName ) {
 }
 
 function pushMissingKey( containerName, key, acc ) {
-	var originalKey = key;
-	var parts = key.split( /[._]/ );
+	let originalKey = key;
+	let parts = key.split( /[._]/ );
 	if ( parts.length > 1 ) {
 		containerName = getContainerName( containerName, parts );
 		key = getKey( parts );
 	}
-	var hasKey = container( containerName )[ key ] != null;
+	let hasKey = container( containerName )[ key ] != null;
 	if( !hasKey ) {
 		acc.push( originalKey );
 	}
@@ -237,23 +282,22 @@ function register() {
 	} else {
 		fn = fn || dependencies;
 	}
-	console.log( "registering", containerName, key );
 	debug( 'Registering key "%s" for container "%s" with %s lifecycle: %s',
 		key, containerName, lifecycle, getDisplay( fn ) );
-	var promise = wrappers[ lifecycle ]( containerName, key, fn, dependencies );
+	let value = wrappers[ lifecycle ]( containerName, key, fn, dependencies );
 	let ctr = container( containerName );
-	ctr[ key ] = promise;
+	ctr[ key ] = value;
 	ctr.keyList.push( key );
 	if( containerName !== "default" ) {
 		container( "default" ).keyList.push( [ containerName, key ].join( "." ) );
 	}
-	container( containerName )[ key ] = promise;
+	container( containerName )[ key ] = value;
 }
 
 function registerModule( containerName, name ) {
-	var mod = getLoadedModule( name ) ||  getModuleFromInstalls( name );
+	let mod = getLoadedModule( name ) ||  getModuleFromInstalls( name );
 	if ( mod ) {
-		var lifecycle = _.isFunction( mod ) ? 'factory' : 'static';
+		let lifecycle = _.isFunction( mod ) ? 'factory' : 'static';
 		register( containerName, name, mod, lifecycle );
 	} else {
 		debug( 'Fount could not find NPM module %s', name );
@@ -266,35 +310,32 @@ function registerAsValue( containerName, key, val ) {
 }
 
 function resolve( containerName, key, scopeName ) {
-	scopeName = scopeName || 'default';
-	var missingKeys = getMissingDependencies( containerName, key, scopeName );
-	if ( missingKeys.length > 0 ) {
-		throw new Error( util.format( 'Fount could not resolve the following dependencies: %s', missingKeys.join( ', ' ) ) );
-	}
-	if ( _.isArray( key ) ) {
-		var hash = {};
-		var ctr = container( containerName );
-		key.forEach( function( k ) {
-			hash[ k ] = resolveKey( containerName, k, scopeName );
-		} );
-		return whenKeys( hash );
+	let value = get( containerName, key, scopeName );
+	if( _.isArray( key ) ) {
+		return whenKeys( value );
 	} else {
-		let value = resolveKey( containerName, key, scopeName );
 		return isPromisey( value ) ? value : Promise.resolve( value );
 	}
 }
 
-function resolveKey( containerName, key, scopeName ) {
-	var parts = key.split( /[._]/ );
-	if ( parts.length > 1 ) {
-		containerName = getContainerName( containerName, parts );
-		key = getKey( parts );
+function resolveFunction( containerName, key, value, dependencies, store, scopeName ) {
+	let hasPromises = false;
+	let args = dependencies.map( function( dependencyKey ) {
+		let dependencyValue = getValue( containerName, dependencyKey, scopeName );
+		if( isPromisey( dependencyValue ) ) {
+			hasPromises = true;
+		}
+		return dependencyValue;
+	} );
+	if( hasPromises ) {
+		return applyWhen( value, args ).then( store );
+	} else {
+		return store( value.apply( null, args ) );
 	}
-	return container( containerName )[ key ]( scopeName );
 }
 
 function scope( containerName, name ) {
-	var ctr = container( containerName );
+	let ctr = container( containerName );
 	return ( ctr.scopes[ name ] = ctr.scopes[ name ] || {} );
 }
 
@@ -325,118 +366,121 @@ function whenKeys( hash ) {
 		.then( () => acc );
 }
 
-var wrappers = {
-	factory: function( containerName, key, value, dependencies ) {
-		return function( scopeName ) {
-			if ( _.isFunction( value ) ) {
-				var dependencyContainer = containerName;
-				if ( value.__npm ) {
-					dependencyContainer = key;
-				}
-				if ( dependencies && canResolve( dependencyContainer, dependencies, scopeName ) ) {
-					var args = dependencies.map( function( key ) {
-						return resolve( dependencyContainer, key, scopeName );
-					} );
-					return applyWhen( value, args );
-				}
-			}
-			return new Promise( function( resolve ) {
-				resolve( value );
-			} );
-		};
-	},
-	scoped: function( containerName, key, value, dependencies ) {
-		return function( scopeName ) {
-			var cache = scope( containerName, scopeName );
-			var store = function( resolvedTo ) {
-				cache[ key ] = _.cloneDeep( resolvedTo );
-				return resolvedTo;
-			};
-			if ( cache[ key ] ) {
-				return Promise.resolve( cache[ key ] );
-			} else if ( _.isFunction( value ) ) {
-				if( dependencies && canResolve( containerName, dependencies, scopeName ) ) {
-					var args = dependencies.map( function( key ) {
-						return resolve( containerName, key, scopeName );
-					} );
-					return applyWhen( value, args ).then( store );
-				} else {
-					var resolvedValue;
-					return function() {
-						if( resolvedValue ) {
-							return Promise.resolve( resolvedValue );
-						} else {
-							return new Promise( function( res ) {
-								if( dependencies && canResolve( containerName, dependencies ) ) {
-									var args = dependencies.map( function( key ) {
-										return resolve( containerName, key, scopeName );
-									} );
-									res( applyWhen( value, args ).then( store ) );
-								} else {
-									res( value );
-								}
-							} );
-						}
-					};
-				}
-			} else {
-				return new Promise( function( res ) {
-					if ( isPromisey( value ) ) {
-						value.then( store );
-					} else {
-						store( value );
-					}
-					res( value );
-				} );
-			}
-		};
-	},
-	static: function( containerName, key, value, dependencies ) {
-		var promise;
+function factoryResolver( containerName, key, value, dependencies ) {
+	return function( scopeName ) {
 		if ( _.isFunction( value ) ) {
-			if( dependencies && canResolve( containerName, dependencies ) ) {
-				var args = dependencies.map( function( key ) {
-					return resolve( containerName, key );
-				} );
-				promise = applyWhen( value, args );
-			} else {
-				var resolvedValue;
-				return function() {
-					if( resolvedValue ) {
-						return Promise.resolve( resolvedValue );
-					} else {
-						return new Promise( function( res ) {
-							if( dependencies && canResolve( containerName, dependencies ) ) {
-								var args = dependencies.map( function( key ) {
-									return resolve( containerName, key );
-								} );
-								applyWhen( value, args )
-									.then( function( x ) {
-										resolvedValue = x;
-										res( x );
-									} );
-							} else {
-								res( value );
-							}
-						} );
+			let dependencyContainer = containerName;
+			if ( value.__npm ) {
+				dependencyContainer = key;
+			}
+			if ( dependencies && canResolve( dependencyContainer, dependencies, scopeName ) ) {
+				let promises = false;
+				let args = dependencies.map( function( key ) {
+					let val = getValue( dependencyContainer, key, scopeName );
+					if( isPromisey( val ) ) {
+						promises = true;
 					}
-				};
+					return val;
+				} );
+				if( promises ) {
+					return applyWhen( value, args );	
+				} else {
+					return value.apply( null, args );
+				}
+			}
+		}
+		return value;
+	};
+}
+
+function scopedResolver( containerName, key, value, dependencies ) {
+	return function( scopeName ) {
+		let cache = scope( containerName, scopeName );
+		let store = function( resolvedTo ) {
+			cache[ key ] = _.cloneDeep( resolvedTo );
+			return resolvedTo;
+		};
+		if ( cache[ key ] ) {
+			return cache[ key ];
+		} else if ( _.isFunction( value ) ) {
+			if( dependencies && canResolve( containerName, dependencies, scopeName ) ) {
+				return resolveFunction( containerName, key, value, dependencies, store, scopeName )
+			} else {
+				return function() {
+					if( dependencies && canResolve( containerName, dependencies, scopeName ) ) {
+						return resolveFunction( containerName, key, value, dependencies, store, scopeName )
+					}
+				}
 			}
 		} else {
-			promise = ( value && value.then ) ? value : value;
+			if ( isPromisey( value ) ) {
+				value.then( store );
+			} else {
+				store( value );
+			}
+			return value;
 		}
-		return function() {
-			return promise;
-		};
-	}
-};
+	};
+}
 
-var fount = function( containerName ) {
+function staticResolver( containerName, key, value, dependencies ) {
+	let store = function( resolvedTo ) {
+		return resolvedTo;
+	};
+	if ( _.isFunction( value ) && !( value.toString() == "stub" && value.name == "proxy" ) ) {
+		if( !dependencies || dependencies.length == 0 ) {
+			return function() {
+				return value();
+			}
+		} else if( dependencies && canResolve( containerName, dependencies ) ) {
+			let val = resolveFunction( containerName, key, value, dependencies, store );
+			return function() {
+				return val;
+			}
+		} else {
+			let resolvedValue;
+			return function() {
+				if( resolvedValue ) {
+					return resolvedValue;
+				} else {
+					return new Promise( function( res ) {
+						if( dependencies && canResolve( containerName, dependencies ) ) {
+							let resolved = resolveFunction( containerName, key, value, dependencies, store );
+							if( isPromisey( resolved ) ) {
+								resolved.then( ( r ) => {
+									resolvedValue = r;
+									res( r );
+								} );
+							} else {
+								resolvedValue = resolved;
+								res( resolved );
+							}
+						} else {
+							res( value );
+						}
+					} );
+				}
+			};
+		}
+	} else {
+		return function() { return value; };
+	}
+}
+
+const wrappers = {
+	factory: factoryResolver,
+	scoped: scopedResolver,
+	static: staticResolver
+}
+
+const fount = function( containerName ) {
 	if ( _.isObject( containerName ) ) {
 		configure( containerName );
 	} else {
 		return {
 			canResolve: canResolve.bind( undefined, containerName ),
+			get: get.bind( undefined, containerName ),
+			invoke: invoke.bind( undefined, containerName ),
 			inject: inject.bind( undefined, containerName ),
 			keys: listKeys.bind( undefined, containerName ),
 			register: register.bind( undefined, containerName ),
@@ -449,16 +493,18 @@ var fount = function( containerName ) {
 	}
 };
 
-fount.canResolve = canResolve.bind( undefined, 'default' );
-fount.inject = inject.bind( undefined, 'default' );
-fount.keys = listKeys.bind( undefined, 'default' );
-fount.register = register.bind( undefined, 'default' );
-fount.registerModule = registerModule.bind( undefined, 'default' );
-fount.registerAsValue = registerAsValue.bind( undefined, 'default' );
-fount.resolve = resolve.bind( undefined, 'default' );
+fount.canResolve = canResolve.bind( undefined, DEFAULT );
+fount.get = get.bind( undefined, DEFAULT );
+fount.invoke = invoke.bind( undefined, DEFAULT );
+fount.inject = inject.bind( undefined, DEFAULT );
+fount.keys = listKeys.bind( undefined, DEFAULT );
+fount.register = register.bind( undefined, DEFAULT );
+fount.registerModule = registerModule.bind( undefined, DEFAULT );
+fount.registerAsValue = registerAsValue.bind( undefined, DEFAULT );
+fount.resolve = resolve.bind( undefined, DEFAULT );
 fount.purge = purge.bind( undefined );
 fount.purgeAll = purgeAll;
-fount.purgeScope = purgeScope.bind( undefined, 'default' );
+fount.purgeScope = purgeScope.bind( undefined, DEFAULT );
 fount.setModule = setModule;
 
 fount.log = function() {

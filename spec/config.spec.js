@@ -40,7 +40,6 @@ describe( 'Hash Configuration', function() {
 
 	it( 'should inject all defined keys', function() {
 		return fount.inject( function( a, b, other_c, other_d, other_e, other_f ) {
-			console.log( "uh", arguments );
 			return {
 				a: a,
 				b: b,

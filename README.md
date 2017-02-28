@@ -147,7 +147,17 @@ fount.inject( function( when ) {
 } );
 ```
 
-## Resolving
+## Synchronous vs. Asynchronous
+Fount provides two sets of of functions for working with dependencies; one for when the dependencies are known to contain one or more promises and one for when the dependency chain is promise-free.
+
+Each set consists of two functions; one for retrieving one or more dependencies directly and one for injecting dependencies into a function and calling it.
+
+> **WARNING**: Fount cannot guarantee a synchronous return or dependency chain. Using the synchronous methods for a dependency that contains a promise will result in unexpected results.
+
+## Asynchronous Methods
+These methods return a promise that resolves once the dependency can be satisfied.
+
+### Resolving
 Resolving is pretty simple - fount will always return a promise to any request for a dependency.
 
 ```javascript
@@ -166,16 +176,8 @@ fount.resolve( [ 'a.one', 'b.two' ] ).then( function( results ) {
 } );
 ```
 
-You can also check in advance whether or not fount is able to resolve a dependency using `canResolve`:
-
-```javascript
-fount.canResolve( 'key1' );
-
-fount.canResolve( [ 'key1', 'key2' ] );
-```
-
-## Injecting
-Injecting is how you get fount to invoke a function on your behalf with resolved dependencies. If you're familiar with AMD, it's somewhat similar to how define works.
+### Injecting
+Injecting is how you get fount to apply resolved dependencies to a function. It can be used the same way as AMD's define, with the arguments specified as strings, or, with the argument names parsed from the call itself.
 
 ```javascript
 // where 'a' and 'b' have been registered
@@ -189,6 +191,51 @@ fount.inject( [ 'one.a', 'two.b' ], function( a, b ) { ... } );
 
 // alternate support for multiple containers
 fount.inject( function( one_a, two_b ) { ... } );
+```
+
+## Synchronous Methods
+These methods return a value immediately and assume that the dependencies involved do not contain promises. Remember: if a promise is encountered, it will result in unexpected results.
+
+### Getting
+As the name implies, `get` simply returns the value of the key from the container. It does still work like resolve in terms of plugging in dependency chains, but it does not resolve promises between dependency levels.
+
+```javascript
+let gimme = fount.get( 'gimme' ); // returns the value of gimme immediately
+
+let scoped = fount.get( 'gimme', 'custom' ); // the value for scope 'custom'
+
+// resolve multiple dependencies at once!
+let { one, two } = fount.get( [ 'one', 'two' ] );
+
+// resolve multiple dependencies ACROSS containers
+let hash = fount.get( [ 'a.one', 'b.two' ] );
+```
+
+### Invoking
+Invoking is how you get fount to apply dependencies to a function without promise resolution. It can be used the same way as AMD's define, with the arguments specified as strings, or, with the argument names parsed from the call itself.
+
+Again: any promises encountered will result in odd behavior - write tests :)
+```javascript
+// where 'a' and 'b' have been registered
+fount.invoke( [ 'a', 'b' ], function( a, b )  { ... } );
+
+// within custom scope -- requires a and/or b to have been registered with 'scoped' lifecycle
+fount.invoke( [ 'a', 'b' ], function( a, b )  { ... }, 'myScope' );
+
+// using keys across multiple containers
+fount.invoke( [ 'one.a', 'two.b' ], function( a, b ) { ... } );
+
+// alternate support for multiple containers
+fount.invoke( function( one_a, two_b ) { ... } );
+```
+
+## Can Resolve
+To check whether fount is able to resolve a dependency ahead of time, use `canResolve`:
+
+```javascript
+fount.canResolve( 'key1' );
+
+fount.canResolve( [ 'key1', 'key2' ] );
 ```
 
 ## Configuration
