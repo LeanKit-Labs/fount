@@ -40,4 +40,13 @@ describe( 'Custom Containers', function() {
 			results.should.eql( { 'x': 50, 'one.x': 100, 'two.x': 200 } );
 		} );
 	} );
+
+	describe( 'when requesting key list', function() {
+		it( 'should return the list of keys', function() {
+			fount( { 'three' : { 'sub.x': 1 } } );
+			fount( 'one' ).keys().should.eql( [ 'x' ] );
+			fount( 'two' ).keys().should.eql( [ 'x' ] );
+			fount.keys().should.eql( [ 'x', 'one.x', 'two.x', 'three.sub.x' ] );
+		} );
+	} );
 } );

@@ -228,6 +228,17 @@ fount( {
 } );
 ```
 
+## Key List
+Fount will return an array of all keys registered:
+
+```javascript
+// top level includes all namespaces
+fount.keys();
+
+// limited by container
+fount( "myContainer" ).keys();
+```
+
 ## Purge
 Fount provides three different ways to clean up:
  * ejecting all keys and resolved scope values from all containers

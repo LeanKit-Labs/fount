@@ -1,14 +1,26 @@
-var _ = require( 'lodash' );
-var when = require( 'when' );
-var whenFn = require( 'when/function' );
-var whenKeys = require( 'when/keys' );
-var debug = require( 'debug' )( 'fount' );
-var util = require( 'util' );
-var path = require( 'path' );
-var fs = require( 'fs' );
-var containers = {};
+const _ = require( 'lodash' );
+const debug = require( 'debug' )( 'fount' );
+const util = require( 'util' );
+const path = require( 'path' );
+const fs = require( 'fs' );
+const getDisplay = process.env.DEBUG ? displayDependency : _.noop;
+
+let containers = {};
 var parent;
-var getDisplay = process.env.DEBUG ? displayDependency : _.noop;
+
+function applyWhen( fn, args ) {
+	if( !args || args.length == 0 ) {
+		return Promise.resolve( fn() );
+	} else {
+		let promises = args.map( ( arg ) => {
+			return isPromisey( arg ) ? arg : Promise.resolve( arg );
+		} );
+		return Promise.all( promises )
+			.then( ( resolved ) => {
+				return fn.apply( null, resolved );
+			} );
+	}
+}
 
 function canResolve( containerName, dependencies, scopeName ) {
 	return getMissingDependencies( containerName, dependencies, scopeName ).length === 0;
@@ -54,7 +66,7 @@ function configure( config ) {
 }
 
 function container( name ) {
-	return ( containers[ name ] = containers[ name ] || { scopes: {} } );
+	return ( containers[ name ] = containers[ name ] || { scopes: {}, keyList: [] } );
 }
 
 function displayDependency( obj ) {
@@ -142,20 +154,6 @@ function getMissingDependencies( containerName, dependencies, scopeName ) {
 	}, [] );
 }
 
-function pushMissingKey( containerName, key, acc ) {
-	var originalKey = key;
-	var parts = key.split( /[._]/ );
-	if ( parts.length > 1 ) {
-		containerName = getContainerName( containerName, parts );
-		key = getKey( parts );
-	}
-	var hasKey = container( containerName )[ key ] != null;
-	if( !hasKey ) {
-		acc.push( originalKey );
-	}
-	return acc;
-}
-
 function inject( containerName, dependencies, fn, scopeName ) {
 	scopeName = scopeName || 'default';
 	if ( _.isFunction( dependencies ) ) {
@@ -179,7 +177,16 @@ function inject( containerName, dependencies, fn, scopeName ) {
 		}
 		return resolve( ctrName, key, scopeName );
 	} );
-	return whenFn.apply( fn, args );
+	return applyWhen( fn, args );
+}
+
+function isPromisey( x ) {
+	return x.then && typeof x.then == 'function'
+}
+
+function listKeys( containerName ) {
+	let ctr = container( containerName );
+	return ctr.keyList;
 }
 
 function purge( containerName ) {
@@ -195,6 +202,20 @@ function purgeAll() {
 function purgeScope( containerName, scopeName ) {
 	debug( 'purging container %s, scope %s', containerName, scopeName );
 	delete container( containerName ).scopes[ scopeName ];
+}
+
+function pushMissingKey( containerName, key, acc ) {
+	var originalKey = key;
+	var parts = key.split( /[._]/ );
+	if ( parts.length > 1 ) {
+		containerName = getContainerName( containerName, parts );
+		key = getKey( parts );
+	}
+	var hasKey = container( containerName )[ key ] != null;
+	if( !hasKey ) {
+		acc.push( originalKey );
+	}
+	return acc;
 }
 
 function register() {
@@ -216,9 +237,16 @@ function register() {
 	} else {
 		fn = fn || dependencies;
 	}
+	console.log( "registering", containerName, key );
 	debug( 'Registering key "%s" for container "%s" with %s lifecycle: %s',
 		key, containerName, lifecycle, getDisplay( fn ) );
 	var promise = wrappers[ lifecycle ]( containerName, key, fn, dependencies );
+	let ctr = container( containerName );
+	ctr[ key ] = promise;
+	ctr.keyList.push( key );
+	if( containerName !== "default" ) {
+		container( "default" ).keyList.push( [ containerName, key ].join( "." ) );
+	}
 	container( containerName )[ key ] = promise;
 }
 
@@ -249,9 +277,10 @@ function resolve( containerName, key, scopeName ) {
 		key.forEach( function( k ) {
 			hash[ k ] = resolveKey( containerName, k, scopeName );
 		} );
-		return whenKeys.all( hash );
+		return whenKeys( hash );
 	} else {
-		return resolveKey( containerName, key, scopeName );
+		let value = resolveKey( containerName, key, scopeName );
+		return isPromisey( value ) ? value : Promise.resolve( value );
 	}
 }
 
@@ -284,6 +313,18 @@ function type( obj ) {
 	return Object.prototype.toString.call( obj );
 }
 
+function whenKeys( hash ) {
+	let acc = {};
+	let promises = _.map( hash, ( promise, key ) => {
+		if( !isPromisey( promise ) ) {
+			promise = Promise.resolve( promise );
+		}
+		return promise.then( ( value ) => acc[ key ] = value );
+	} );
+	return Promise.all( promises )
+		.then( () => acc );
+}
+
 var wrappers = {
 	factory: function( containerName, key, value, dependencies ) {
 		return function( scopeName ) {
@@ -296,10 +337,10 @@ var wrappers = {
 					var args = dependencies.map( function( key ) {
 						return resolve( dependencyContainer, key, scopeName );
 					} );
-					return whenFn.apply( value, args );
+					return applyWhen( value, args );
 				}
 			}
-			return when.promise( function( resolve ) {
+			return new Promise( function( resolve ) {
 				resolve( value );
 			} );
 		};
@@ -312,25 +353,25 @@ var wrappers = {
 				return resolvedTo;
 			};
 			if ( cache[ key ] ) {
-				return when.resolve( cache[ key ] );
+				return Promise.resolve( cache[ key ] );
 			} else if ( _.isFunction( value ) ) {
 				if( dependencies && canResolve( containerName, dependencies, scopeName ) ) {
 					var args = dependencies.map( function( key ) {
 						return resolve( containerName, key, scopeName );
 					} );
-					return whenFn.apply( value, args ).then( store );
+					return applyWhen( value, args ).then( store );
 				} else {
 					var resolvedValue;
 					return function() {
 						if( resolvedValue ) {
-							return when( resolvedValue );
+							return Promise.resolve( resolvedValue );
 						} else {
-							return when.promise( function( res ) {
+							return new Promise( function( res ) {
 								if( dependencies && canResolve( containerName, dependencies ) ) {
 									var args = dependencies.map( function( key ) {
 										return resolve( containerName, key, scopeName );
 									} );
-									res( whenFn.apply( value, args ).then( store ) );
+									res( applyWhen( value, args ).then( store ) );
 								} else {
 									res( value );
 								}
@@ -339,13 +380,13 @@ var wrappers = {
 					};
 				}
 			} else {
-				return when.promise( function( resolve ) {
-					if ( when.isPromiseLike( value ) ) {
+				return new Promise( function( res ) {
+					if ( isPromisey( value ) ) {
 						value.then( store );
 					} else {
 						store( value );
 					}
-					resolve( value );
+					res( value );
 				} );
 			}
 		};
@@ -357,19 +398,19 @@ var wrappers = {
 				var args = dependencies.map( function( key ) {
 					return resolve( containerName, key );
 				} );
-				promise = whenFn.apply( value, args );
+				promise = applyWhen( value, args );
 			} else {
 				var resolvedValue;
 				return function() {
 					if( resolvedValue ) {
-						return when( resolvedValue );
+						return Promise.resolve( resolvedValue );
 					} else {
-						return when.promise( function( res ) {
+						return new Promise( function( res ) {
 							if( dependencies && canResolve( containerName, dependencies ) ) {
 								var args = dependencies.map( function( key ) {
 									return resolve( containerName, key );
 								} );
-								whenFn.apply( value, args )
+								applyWhen( value, args )
 									.then( function( x ) {
 										resolvedValue = x;
 										res( x );
@@ -382,7 +423,7 @@ var wrappers = {
 				};
 			}
 		} else {
-			promise = ( value && value.then ) ? value : when( value );
+			promise = ( value && value.then ) ? value : value;
 		}
 		return function() {
 			return promise;
@@ -397,6 +438,7 @@ var fount = function( containerName ) {
 		return {
 			canResolve: canResolve.bind( undefined, containerName ),
 			inject: inject.bind( undefined, containerName ),
+			keys: listKeys.bind( undefined, containerName ),
 			register: register.bind( undefined, containerName ),
 			registerModule: registerModule.bind( undefined, containerName ),
 			registerAsValue: registerAsValue.bind( undefined, containerName ),
@@ -409,6 +451,7 @@ var fount = function( containerName ) {
 
 fount.canResolve = canResolve.bind( undefined, 'default' );
 fount.inject = inject.bind( undefined, 'default' );
+fount.keys = listKeys.bind( undefined, 'default' );
 fount.register = register.bind( undefined, 'default' );
 fount.registerModule = registerModule.bind( undefined, 'default' );
 fount.registerAsValue = registerAsValue.bind( undefined, 'default' );
