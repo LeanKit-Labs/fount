@@ -7,6 +7,7 @@ const getDisplay = process.env.DEBUG ? displayDependency : _.noop;
 const DEFAULT = 'default';
 
 let containers = {};
+let containerList = [];
 let parent;
 
 function applyWhen( fn, args ) {
@@ -67,7 +68,13 @@ function configure( config ) {
 }
 
 function container( name ) {
-	return ( containers[ name ] = containers[ name ] || { scopes: {}, keyList: [] } );
+	let ctr = containers[ name ];
+	if( !ctr ) {
+		ctr = { scopes: {}, keyList: [] };
+		containerList.push( name );
+		containers[ name ] = ctr;
+	}
+	return ctr;
 }
 
 function displayDependency( obj ) {
@@ -101,7 +108,6 @@ function get( containerName, key, scopeName ) {
 		throw new Error( util.format( 'Fount could not resolve the following dependencies: %s', missingKeys.join( ', ' ) ) );
 	}
 	if ( _.isArray( key ) ) {
-		let ctr = container( containerName );
 		return key.reduce( ( acc, k ) => {
 			acc[ k ] = getValue( containerName, k, scopeName );
 			return acc;
@@ -196,7 +202,7 @@ function getValue( containerName, key, scopeName ) {
 		containerName = getContainerName( containerName, parts );
 		key = getKey( parts );
 	}
-	return container( containerName )[ key ]( scopeName );
+	return containers[ containerName ][ key ]( scopeName );
 }
 
 function invoke( containerName, dependencies, fn, scopeName ) {
@@ -229,24 +235,35 @@ function isPromisey( x ) {
 	return x && x.then && typeof x.then == 'function'
 }
 
+function listContainers( containerName ) {
+	return containerList;
+}
+
 function listKeys( containerName ) {
-	let ctr = container( containerName );
-	return ctr.keyList;
+	let ctr = containers[ containerName ];
+	return ctr ? ctr.keyList : [];
 }
 
 function purge( containerName ) {
-	debug( 'purging container %s', containerName );
-	containers[ containerName ] = { scopes: {} };
+	let index = containerList.indexOf( containerName );
+	if( index >= 0 ) {
+		debug( 'purging container %s', containerName );
+		containerList.splice( index, 1 );
+		delete containers[ containerName ];
+	}
 }
 
 function purgeAll() {
 	debug( 'purging all containers' );
+	containerList = [];
 	containers = { scopes: {} };
 }
 
 function purgeScope( containerName, scopeName ) {
 	debug( 'purging container %s, scope %s', containerName, scopeName );
-	delete container( containerName ).scopes[ scopeName ];
+	if( containerList.indexOf( containerName ) >= 0 ) {
+		delete containers[ containerName ].scopes[ scopeName ];	
+	}
 }
 
 function pushMissingKey( containerName, key, acc ) {
@@ -256,7 +273,8 @@ function pushMissingKey( containerName, key, acc ) {
 		containerName = getContainerName( containerName, parts );
 		key = getKey( parts );
 	}
-	let hasKey = container( containerName )[ key ] != null;
+	let ctr = containers[ containerName ];
+	let hasKey = ctr && ctr[ key ] != null;
 	if( !hasKey ) {
 		acc.push( originalKey );
 	}
@@ -288,10 +306,9 @@ function register() {
 	let ctr = container( containerName );
 	ctr[ key ] = value;
 	ctr.keyList.push( key );
-	if( containerName !== "default" ) {
-		container( "default" ).keyList.push( [ containerName, key ].join( "." ) );
+	if( containerName !== DEFAULT ) {
+		container( DEFAULT ).keyList.push( [ containerName, key ].join( "." ) );
 	}
-	container( containerName )[ key ] = value;
 }
 
 function registerModule( containerName, name ) {
@@ -494,6 +511,7 @@ const fount = function( containerName ) {
 };
 
 fount.canResolve = canResolve.bind( undefined, DEFAULT );
+fount.containers = listContainers.bind( undefined, DEFAULT );
 fount.get = get.bind( undefined, DEFAULT );
 fount.invoke = invoke.bind( undefined, DEFAULT );
 fount.inject = inject.bind( undefined, DEFAULT );

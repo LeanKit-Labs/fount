@@ -49,4 +49,35 @@ describe( 'Custom Containers', function() {
 			fount.keys().should.eql( [ 'x', 'one.x', 'two.x', 'three.sub.x' ] );
 		} );
 	} );
+
+	describe( 'when requesting a container list', function() {
+		it( 'should return a list of containers', function() {
+			fount.containers().should.eql( [ 'default', 'one', 'two', 'three.sub' ] );
+		} );
+	} );
+
+	describe( 'when checking for missing keys', function() {
+		before( function() {
+			try { fount.get( "a.missing.key" ); } catch( e ) {}
+			fount.canResolve( "another.bogus.key" );
+		} );
+
+		it( 'should not create empty containers', function() {
+			fount.containers().should.eql( [ 'default', 'one', 'two', 'three.sub' ] );
+		} );
+	} );
+
+	describe( 'when purging a container', function() {
+		before( function() {
+			fount.purge( 'one' );
+		} );
+
+		it( 'should remove container', function() {
+			fount.containers().should.eql( [ 'default', 'two', 'three.sub' ] );
+		} );
+
+		it( "no longer report container keys resolvable", () => {
+		  fount.canResolve( 'one.x' ).should.equal.false;
+		} );
+	} );
 } );
