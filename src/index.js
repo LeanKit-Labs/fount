@@ -1,14 +1,96 @@
-const _ = require( 'lodash' );
 const debug = require( 'debug' )( 'fount' );
 const util = require( 'util' );
 const path = require( 'path' );
 const fs = require( 'fs' );
-const getDisplay = process.env.DEBUG ? displayDependency : _.noop;
+const getDisplay = process.env.DEBUG ? displayDependency : function(){};
+
 const DEFAULT = 'default';
 
-let containers = {};
-let containerList = [];
-let parent;
+/**
+ * Object Comparison Approach Copied & Adapted from Lodash
+ * Lodash <https://lodash.com/>
+ * Copyright JS Foundation and other contributors <https://js.foundation/>
+ * Released under MIT license <https://lodash.com/license>
+ * Based on Underscore.js 1.8.3 <http://underscorejs.org/LICENSE>
+ * Copyright Jeremy Ashkenas, DocumentCloud and Investigative Reporters & Editors
+ */
+/** `Object#toString` result references. */
+const ARGUMENTS_TAG = "[object Arguments]";
+const ARRAY_TAG = "[object Array]";
+const ASYNC_TAG = "[object AsyncFunction]";
+const BOOL_TAG = "[object Boolean]";
+const DATE_TAG = "[object Date]";
+const ERROR_TAG = "[object Error]";
+const FUNC_TAG = "[object Function]";
+const GEN_TAG = "[object GeneratorFunction]";
+const MAP_TAG = "[object Map]";
+const NUMBER_TAG = "[object Number]";
+const NULL_TAG = "[object Null]";
+const OBJECT_TAG = "[object Object]";
+const PROMISE_TAG = "[object Promise]";
+const PROXY_TAG = "[object Proxy]";
+const REGEX_TAG = "[object RegExp]";
+const SET_TAG = "[object Set]";
+const STRING_TAG = "[object String]";
+const SYMBOL_TAG = "[object Symbol]";
+const UNDEFINED_TAG = "[object Undefined]";
+const WEAKMAP_TAG = "[object WeakMap]";
+const WEAKSET_TAG = "[object WeakSet]";
+const ARRAYBUFFER_TAG = "[object ArrayBuffer]";
+const DATAVIEW_TAG = "[object DataView]";
+const FLOAT32_TAG = "[object Float32Array]";
+const FLOAT64_TAG = "[object Float64Array]";
+const INT8_TAG = "[object Int8Array]";
+const INT16_TAG = "[object Int16Array]";
+const INT32_TAG = "[object Int32Array]";
+const UINT8_TAG = "[object Uint8Array]";
+const UINT8CLAMP_TAG = "[object Uint8ClampedArray]";
+const UINT16_TAG = "[object Uint16Array]";
+const UINT32_TAG = "[object Uint32Array]";
+const NOT_AN_OBJECT = "";
+
+function isObject( value ) {
+  var type = typeof value;
+  return value != null && ( type == "object" || type == "function" );
+}
+
+function getObjectTag( value ) {
+	if( !isObject( value ) ) { 
+		return NOT_AN_OBJECT; 
+	}
+	return Object.prototype.toString.call( value );
+}
+
+function isDate( value ) {
+	return getObjectTag( value ) == DATE_TAG;
+}
+
+function isFunction( value ) {
+	var tag = getObjectTag( value );
+  return tag == FUNC_TAG || tag == GEN_TAG || tag == ASYNC_TAG || tag == PROXY_TAG;
+}
+
+function isNumber(value) {
+  return typeof value == 'number' ||
+    ( getObjectTag( value ) == NUMBER_TAG );
+}
+
+function isPlainObject( value ) {
+	return ( isObject( value ) && value.prototype == undefined );
+}
+
+function isPromisey( x ) {
+	return x && x.then && typeof x.then == 'function'
+}
+
+function isString( value ) {
+	return typeof value == 'string' ||
+		( !Array.isArray( value ) && getObjectTag( value ) == STRING_TAG );
+}
+
+var containers = {};
+var containerList = [];
+var parent;
 
 function applyWhen( fn, args ) {
 	if( !args || args.length == 0 ) {
@@ -31,7 +113,7 @@ function canResolve( containerName, dependencies, scopeName ) {
 function checkDependencies( fn, dependencies ) {
 	let fnString = fn.toString();
 	if ( /[(][^)]*[)]/.test( fnString ) ) {
-		return ( _.isFunction( fn ) && !dependencies.length ) ?
+		return ( isFunction( fn ) && !dependencies.length ) ?
 			trim( /[(]([^)]*)[)]/.exec( fnString )[ 1 ].split( ',' ) ) :
 			dependencies;
 	} else {
@@ -39,12 +121,39 @@ function checkDependencies( fn, dependencies ) {
 	}
 }
 
+function clone(source, target) {
+	var tag = getObjectTag( source );
+	if ( source == null || typeof source != "object" ) {
+		return source;
+	}
+  else if ( !isObject( source ) && !Array.isArray( source ) ) {
+  	return source;
+  }
+  else if ( tag == BOOL_TAG || tag == STRING_TAG || tag == NUMBER_TAG ||
+  					tag == FUNC_TAG || tag == DATE_TAG || tag == REGEX_TAG ||
+  					tag == GEN_TAG || tag == ASYNC_TAG || tag == PROXY_TAG ||
+  					tag == PROMISE_TAG ) {
+     	return new source.constructor( source );
+  }
+
+  target = target || new source.constructor();
+  for (var key in source)
+  {
+      target[ key ] = typeof target[ key ] == "undefined" ? clone( source[ key ], null) : target[ key ];
+  }
+  return target;
+}
+
 function configure( config ) {
-	_.each( config, function( val, containerName ) {
-		_.each( val, function( opt, key ) {
-			let dependency = opt;
+	let containerNames = Object.keys( config || {} );
+	containerNames.forEach( ( containerName ) => {
+		let containerConfig = config[ containerName ];
+		let keys = Object.keys( containerConfig );
+		keys.forEach( ( key ) => {
+			let opt = containerConfig[ key ];
+			let dependency = undefined;
 			let lifecycle;
-			if ( _.isObject( opt ) ) {
+			if ( isObject( opt ) ) {
 				if ( opt.scoped ) {
 					lifecycle = 'scoped';
 					dependency = opt.scoped;
@@ -54,13 +163,11 @@ function configure( config ) {
 				} else if ( opt.factory ) {
 					lifecycle = 'factory';
 					dependency = opt.factory;
-				} else {
-					dependency = undefined;
 				}
 			}
 			if ( !dependency ) {
 				dependency = opt;
-				lifecycle = _.isFunction( opt ) ? 'factory' : 'static';
+				lifecycle = isFunction( opt ) ? 'factory' : 'static';
 			}
 			register( containerName, key, dependency, lifecycle );
 		} );
@@ -77,16 +184,41 @@ function container( name ) {
 	return ctr;
 }
 
+function contains( list, value ) {
+	return list.indexOf( value ) >= 0;
+}
+
 function displayDependency( obj ) {
-	if ( _.isFunction( obj ) ) {
+	if ( isFunction( obj ) ) {
 		return obj.name || 'anonymous function';
-	} else if ( _.isString( obj ) || _.isNumber( obj ) || _.isArray( obj ) || _.isDate( obj ) ) {
+	} else if ( isString( obj ) || isNumber( obj ) || Array.isArray( obj ) || isDate( obj ) ) {
 		return obj;
-	} else if ( _.isPlainObject( obj ) ) {
+	} else if ( isPlainObject( obj ) ) {
 		return '[Object Literal]';
 	} else {
 		return obj.constructor.name || '[Object]';
 	}
+}
+
+function filter( list ) {
+	return list.reduce( ( acc, value ) => {
+		if( value ) { acc.push( value ); }
+		return acc;
+	}, [] );
+}
+
+function find( list, predicate ) {
+	if( list.length == 0 ) {
+		return undefined;
+	}
+	var found = false;
+	var index = -1;
+	var item = undefined;
+	do {
+		item = list[ ++index ];
+		found = predicate( item );
+	} while( !found && index < list.length )
+	return item;
 }
 
 function findParent( mod ) {
@@ -107,7 +239,7 @@ function get( containerName, key, scopeName ) {
 	if ( missingKeys.length > 0 ) {
 		throw new Error( util.format( 'Fount could not resolve the following dependencies: %s', missingKeys.join( ', ' ) ) );
 	}
-	if ( _.isArray( key ) ) {
+	if ( Array.isArray( key ) ) {
 		return key.reduce( ( acc, k ) => {
 			acc[ k ] = getValue( containerName, k, scopeName );
 			return acc;
@@ -151,8 +283,8 @@ function getKey( parts ) {
 function getLoadedModule( name ) {
 	let parent = findParent( module );
 	let regex = new RegExp( name );
-	let candidate = _.find( parent.children, function( child ) {
-		return regex.test( child.id ) && _.contains( child.id.split( '/' ), name );
+	let candidate = find( parent.children, function( child ) {
+		return regex.test( child.id ) && contains( child.id.split( '/' ), name );
 	} );
 	if ( candidate ) {
 		candidate.exports.__npm = candidate.exports.__npm || true;
@@ -164,7 +296,7 @@ function getLoadedModule( name ) {
 
 function getModuleFromInstalls( name ) {
 	let parent = findParent( module );
-	let installPath = _.find( parent.paths, function( p ) {
+	let installPath = find( parent.paths, function( p ) {
 		let modPath = path.join( p, name );
 		return fs.existsSync( modPath );
 	} );
@@ -183,9 +315,9 @@ function getArgs( obj ) {
 function getMissingDependencies( containerName, dependencies, scopeName ) {
 	scopeName = scopeName || DEFAULT;
 	containerName = containerName || DEFAULT;
-	dependencies = _.isArray( dependencies ) ? dependencies : [ dependencies ];
+	dependencies = Array.isArray( dependencies ) ? dependencies : [ dependencies ];
 	return dependencies.reduce( function( acc, key ) {
-		if ( _.isArray( key ) ) {
+		if ( Array.isArray( key ) ) {
 			key.forEach( function( k ) {
 				pushMissingKey( containerName, k, acc );
 			} );
@@ -207,7 +339,7 @@ function getValue( containerName, key, scopeName ) {
 
 function invoke( containerName, dependencies, fn, scopeName ) {
 	scopeName = scopeName || DEFAULT;
-	if ( _.isFunction( dependencies ) ) {
+	if ( isFunction( dependencies ) ) {
 		scopeName = fn;
 		fn = dependencies;
 		dependencies = [];
@@ -222,17 +354,13 @@ function invoke( containerName, dependencies, fn, scopeName ) {
 
 function inject( containerName, dependencies, fn, scopeName ) {
 	scopeName = scopeName || DEFAULT;
-	if ( _.isFunction( dependencies ) ) {
+	if ( isFunction( dependencies ) ) {
 		scopeName = fn;
 		fn = dependencies;
 		dependencies = [];
 	}
 	let args = getArguments( containerName, dependencies, fn, scopeName );
 	return applyWhen( fn, args );
-}
-
-function isPromisey( x ) {
-	return x && x.then && typeof x.then == 'function'
 }
 
 function listContainers( containerName ) {
@@ -282,20 +410,20 @@ function pushMissingKey( containerName, key, acc ) {
 }
 
 function register() {
-	var args = getArgs( arguments );
-	var containerName = args[ 0 ];
-	var key = args[ 1 ];
-	var parts = key.split( /[._]/ );
-	var dependencies = _.isArray( args[ 2 ] ) ? args[ 2 ] : [];
-	var fn = dependencies.length ? args[ 3 ] : args[ 2 ];
-	var lifecycle = ( dependencies.length ? args[ 4 ] : args[ 3 ] ) || 'static';
+	let args = getArgs( arguments );
+	let containerName = args[ 0 ];
+	let key = args[ 1 ];
+	let parts = key.split( /[._]/ );
+	let dependencies = Array.isArray( args[ 2 ] ) ? args[ 2 ] : [];
+	let fn = dependencies.length ? args[ 3 ] : args[ 2 ];
+	let lifecycle = ( dependencies.length ? args[ 4 ] : args[ 3 ] ) || 'static';
 
 	if ( parts.length > 1 ) {
 		containerName = getContainerName( containerName, parts );
 		key = getKey( parts );
 	}
 
-	if ( _.isFunction( fn ) ) {
+	if ( isFunction( fn ) ) {
 		dependencies = checkDependencies( fn, dependencies );
 	} else {
 		fn = fn || dependencies;
@@ -314,7 +442,7 @@ function register() {
 function registerModule( containerName, name ) {
 	let mod = getLoadedModule( name ) ||  getModuleFromInstalls( name );
 	if ( mod ) {
-		let lifecycle = _.isFunction( mod ) ? 'factory' : 'static';
+		let lifecycle = isFunction( mod ) ? 'factory' : 'static';
 		register( containerName, name, mod, lifecycle );
 	} else {
 		debug( 'Fount could not find NPM module %s', name );
@@ -328,7 +456,7 @@ function registerAsValue( containerName, key, val ) {
 
 function resolve( containerName, key, scopeName ) {
 	let value = get( containerName, key, scopeName );
-	if( _.isArray( key ) ) {
+	if( Array.isArray( key ) ) {
 		return whenKeys( value );
 	} else {
 		return isPromisey( value ) ? value : Promise.resolve( value );
@@ -364,7 +492,7 @@ function trimString( str ) {
 	return str.trim();
 }
 function trim( list ) {
-	return ( list && list.length ) ? _.filter( list.map( trimString ) ) : [];
+	return ( list && list.length ) ? filter( list.map( trimString ) ) : [];
 }
 
 function type( obj ) {
@@ -373,19 +501,22 @@ function type( obj ) {
 
 function whenKeys( hash ) {
 	let acc = {};
-	let promises = _.map( hash, ( promise, key ) => {
+	let keys = Object.keys( hash );
+	let promises = keys.map( ( key ) => {
+		let promise = hash[ key ];
 		if( !isPromisey( promise ) ) {
 			promise = Promise.resolve( promise );
 		}
 		return promise.then( ( value ) => acc[ key ] = value );
 	} );
+
 	return Promise.all( promises )
 		.then( () => acc );
 }
 
 function factoryResolver( containerName, key, value, dependencies ) {
 	return function( scopeName ) {
-		if ( _.isFunction( value ) ) {
+		if ( isFunction( value ) ) {
 			let dependencyContainer = containerName;
 			if ( value.__npm ) {
 				dependencyContainer = key;
@@ -414,12 +545,12 @@ function scopedResolver( containerName, key, value, dependencies ) {
 	return function( scopeName ) {
 		let cache = scope( containerName, scopeName );
 		let store = function( resolvedTo ) {
-			cache[ key ] = _.cloneDeep( resolvedTo );
+			cache[ key ] = clone( resolvedTo );
 			return resolvedTo;
 		};
 		if ( cache[ key ] ) {
 			return cache[ key ];
-		} else if ( _.isFunction( value ) ) {
+		} else if ( isFunction( value ) ) {
 			if( dependencies && canResolve( containerName, dependencies, scopeName ) ) {
 				return resolveFunction( containerName, key, value, dependencies, store, scopeName )
 			} else {
@@ -444,7 +575,7 @@ function staticResolver( containerName, key, value, dependencies ) {
 	let store = function( resolvedTo ) {
 		return resolvedTo;
 	};
-	if ( _.isFunction( value ) && !( value.toString() == "stub" && value.name == "proxy" ) ) {
+	if ( isFunction( value ) && !( value.toString() == "stub" && value.name == "proxy" ) ) {
 		if( !dependencies || dependencies.length == 0 ) {
 			return function() {
 				return value();
@@ -491,7 +622,7 @@ const wrappers = {
 }
 
 const fount = function( containerName ) {
-	if ( _.isObject( containerName ) ) {
+	if ( isObject( containerName ) ) {
 		configure( containerName );
 	} else {
 		return {

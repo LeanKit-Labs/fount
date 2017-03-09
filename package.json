@@ -23,14 +23,14 @@
   },
   "homepage": "https://github.com/LeanKit-Labs/fount",
   "dependencies": {
-    "debug": "~2.1.3",
-    "lodash": "~3.7.0"
+    "debug": "~2.1.3"
   },
   "devDependencies": {
     "biggulp": "~0.0.2",
     "chai": "~2.1.1",
     "chai-as-promised": "~4.3.0",
     "gulp": "~3.8.11",
+    "lodash": "~3.7.0",
     "postal": "^1.0.2",
     "sinon": "~1.14.1",
     "when": "~3.7.2"
