@@ -5,6 +5,7 @@ const fs = require( 'fs' );
 const getDisplay = process.env.DEBUG ? displayDependency : function(){};
 
 const DEFAULT = 'default';
+const STATIC = 'static';
 
 /**
  * Object Comparison Approach Copied & Adapted from Lodash
@@ -81,6 +82,10 @@ function isPlainObject( value ) {
 
 function isPromisey( x ) {
 	return x && x.then && typeof x.then == 'function'
+}
+
+function isStub( value ) {
+	return ( value && value.toString() == "stub" && value.name == "proxy" );
 }
 
 function isString( value ) {
@@ -233,8 +238,7 @@ function findParent( mod ) {
 	}
 }
 
-function get( containerName, key, scopeName ) {
-	scopeName = scopeName || DEFAULT;
+function get( containerName, key, scopeName = DEFAULT ) {
 	let missingKeys = getMissingDependencies( containerName, key, scopeName );
 	if ( missingKeys.length > 0 ) {
 		throw new Error( util.format( 'Fount could not resolve the following dependencies: %s', missingKeys.join( ', ' ) ) );
@@ -308,13 +312,7 @@ function getModuleFromInstalls( name ) {
 	return mod;
 }
 
-function getArgs( obj ) {
-	return Array.prototype.slice.call( obj );
-}
-
-function getMissingDependencies( containerName, dependencies, scopeName ) {
-	scopeName = scopeName || DEFAULT;
-	containerName = containerName || DEFAULT;
+function getMissingDependencies( containerName = DEFAULT, dependencies, scopeName = DEFAULT ) {
 	dependencies = Array.isArray( dependencies ) ? dependencies : [ dependencies ];
 	return dependencies.reduce( function( acc, key ) {
 		if ( Array.isArray( key ) ) {
@@ -330,15 +328,16 @@ function getMissingDependencies( containerName, dependencies, scopeName ) {
 
 function getValue( containerName, key, scopeName ) {
 	let parts = key.split( /[._]/ );
+	let ctrName = containerName;
+	let keyName = key;
 	if ( parts.length > 1 ) {
-		containerName = getContainerName( containerName, parts );
-		key = getKey( parts );
+		ctrName = getContainerName( containerName, parts );
+		keyName = getKey( parts );
 	}
-	return containers[ containerName ][ key ]( scopeName );
+	return containers[ ctrName ][ keyName ]( scopeName );
 }
 
-function invoke( containerName, dependencies, fn, scopeName ) {
-	scopeName = scopeName || DEFAULT;
+function invoke( containerName, dependencies, fn, scopeName = DEFAULT ) {
 	if ( isFunction( dependencies ) ) {
 		scopeName = fn;
 		fn = dependencies;
@@ -352,8 +351,7 @@ function invoke( containerName, dependencies, fn, scopeName ) {
 	}
 }
 
-function inject( containerName, dependencies, fn, scopeName ) {
-	scopeName = scopeName || DEFAULT;
+function inject( containerName, dependencies, fn, scopeName = DEFAULT ) {
 	if ( isFunction( dependencies ) ) {
 		scopeName = fn;
 		fn = dependencies;
@@ -397,12 +395,16 @@ function purgeScope( containerName, scopeName ) {
 function pushMissingKey( containerName, key, acc ) {
 	let originalKey = key;
 	let parts = key.split( /[._]/ );
+	let hasKey = false;
 	if ( parts.length > 1 ) {
-		containerName = getContainerName( containerName, parts );
-		key = getKey( parts );
+		let container = containers[ getContainerName( containerName, parts ) ];
+		hasKey =
+			container != null &&
+			container[ getKey( parts ) ] != null;
+	} else {
+		let container = containers[ containerName ];
+		hasKey = container && container[ key ] != null;	
 	}
-	let ctr = containers[ containerName ];
-	let hasKey = ctr && ctr[ key ] != null;
 	if( !hasKey ) {
 		acc.push( originalKey );
 	}
@@ -410,24 +412,44 @@ function pushMissingKey( containerName, key, acc ) {
 }
 
 function register() {
-	let args = getArgs( arguments );
-	let containerName = args[ 0 ];
-	let key = args[ 1 ];
+	let containerName = arguments[ 0 ];
+	let key = arguments[ 1 ];
 	let parts = key.split( /[._]/ );
-	let dependencies = Array.isArray( args[ 2 ] ) ? args[ 2 ] : [];
-	let fn = dependencies.length ? args[ 3 ] : args[ 2 ];
-	let lifecycle = ( dependencies.length ? args[ 4 ] : args[ 3 ] ) || 'static';
-
 	if ( parts.length > 1 ) {
 		containerName = getContainerName( containerName, parts );
 		key = getKey( parts );
 	}
-
-	if ( isFunction( fn ) ) {
-		dependencies = checkDependencies( fn, dependencies );
-	} else {
-		fn = fn || dependencies;
+	let args2 = arguments[ 2 ];
+	let args3 = arguments[ 3 ];
+	let args4 = arguments[ 4 ];
+	// function passed for value, no dependency list
+	if( isFunction( args2 ) ) {
+		registerFunction( containerName, key, args2, [], args3 );
 	}
+	// function passed for value with preceding dependency list
+	else if( isFunction( args3 ) ) {
+		registerFunction( containerName, key, args3, args2, args4 );
+	} 
+	// values were passed directly
+	else {
+		registerValues( containerName, key, args2, args3 );
+	}
+}
+
+function registerValues( containerName, key, values, lifecycle = STATIC ) {
+	debug( 'Registering key "%s" for container "%s" with %s lifecycle: %s',
+		key, containerName, lifecycle, getDisplay( values ) );
+	let value = wrappers[ lifecycle ]( containerName, key, values );
+	let ctr = container( containerName );
+	ctr[ key ] = value;
+	ctr.keyList.push( key );
+	if( containerName !== DEFAULT ) {
+		container( DEFAULT ).keyList.push( [ containerName, key ].join( "." ) );
+	}
+}
+
+function registerFunction( containerName, key, fn, dependencies, lifecycle = STATIC ) {
+	dependencies = checkDependencies( fn, dependencies );
 	debug( 'Registering key "%s" for container "%s" with %s lifecycle: %s',
 		key, containerName, lifecycle, getDisplay( fn ) );
 	let value = wrappers[ lifecycle ]( containerName, key, fn, dependencies );
@@ -491,6 +513,7 @@ function setModule( mod ) {
 function trimString( str ) {
 	return str.trim();
 }
+
 function trim( list ) {
 	return ( list && list.length ) ? filter( list.map( trimString ) ) : [];
 }
@@ -507,6 +530,7 @@ function whenKeys( hash ) {
 		if( !isPromisey( promise ) ) {
 			promise = Promise.resolve( promise );
 		}
+		acc[ key ] = undefined;
 		return promise.then( ( value ) => acc[ key ] = value );
 	} );
 
@@ -575,7 +599,7 @@ function staticResolver( containerName, key, value, dependencies ) {
 	let store = function( resolvedTo ) {
 		return resolvedTo;
 	};
-	if ( isFunction( value ) && !( value.toString() == "stub" && value.name == "proxy" ) ) {
+	if ( isFunction( value ) && !isStub( value ) ) {
 		if( !dependencies || dependencies.length == 0 ) {
 			return function() {
 				return value();

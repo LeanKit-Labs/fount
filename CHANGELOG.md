@@ -7,7 +7,7 @@ Proposed official release:
  * adds synchronous dependency resolution
  * enables multi-level namespaces
  * adds feature to get list of keys
- * removes when as a dependency
+ * removes dependencies on when and lodash
  * eliminates a memory leak caused by adding containers when checking for non-existing keys/namespaces
  * attempts to clean up some of the functions and eliminate repeated logic
 
