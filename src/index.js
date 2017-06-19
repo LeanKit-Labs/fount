@@ -1,11 +1,11 @@
-const debug = require( 'debug' )( 'fount' );
-const util = require( 'util' );
-const path = require( 'path' );
-const fs = require( 'fs' );
+const debug = require( "debug" )( "fount" );
+const util = require( "util" );
+const path = require( "path" );
+const fs = require( "fs" );
 const getDisplay = process.env.DEBUG ? displayDependency : function(){};
 
-const DEFAULT = 'default';
-const STATIC = 'static';
+const DEFAULT = "default";
+const STATIC = "static";
 
 /**
  * Object Comparison Approach Copied & Adapted from Lodash
@@ -51,8 +51,8 @@ const UINT32_TAG = "[object Uint32Array]";
 const NOT_AN_OBJECT = "";
 
 function isObject( value ) {
-  var type = typeof value;
-  return value != null && ( type == "object" || type == "function" );
+  const type = typeof value;
+  return value != null && ( type === "object" || type === "function" );
 }
 
 function getObjectTag( value ) {
@@ -63,17 +63,17 @@ function getObjectTag( value ) {
 }
 
 function isDate( value ) {
-	return getObjectTag( value ) == DATE_TAG;
+	return getObjectTag( value ) === DATE_TAG;
 }
 
 function isFunction( value ) {
-	var tag = getObjectTag( value );
-  return tag == FUNC_TAG || tag == GEN_TAG || tag == ASYNC_TAG || tag == PROXY_TAG;
+	const tag = getObjectTag( value );
+  return tag === FUNC_TAG || tag === GEN_TAG || tag === ASYNC_TAG || tag === PROXY_TAG;
 }
 
 function isNumber(value) {
-  return typeof value == 'number' ||
-    ( getObjectTag( value ) == NUMBER_TAG );
+  return typeof value === "number" ||
+    ( getObjectTag( value ) === NUMBER_TAG );
 }
 
 function isPlainObject( value ) {
@@ -81,7 +81,7 @@ function isPlainObject( value ) {
 }
 
 function isPromisey( x ) {
-	return x && x.then && typeof x.then == 'function'
+	return x && x.then && typeof x.then === "function"
 }
 
 function isStub( value ) {
@@ -89,25 +89,22 @@ function isStub( value ) {
 }
 
 function isString( value ) {
-	return typeof value == 'string' ||
-		( !Array.isArray( value ) && getObjectTag( value ) == STRING_TAG );
+	return typeof value === "string" ||
+		( !Array.isArray( value ) && getObjectTag( value ) === STRING_TAG );
 }
 
 var containers = {};
 var containerList = [];
 var parent;
 
-function applyWhen( fn, args ) {
-	if( !args || args.length == 0 ) {
-		return Promise.resolve( fn() );
+async function applyWhen( fn, args ) {
+	if( !args || args.length === 0 ) {
+		return fn();
 	} else {
-		let promises = args.map( ( arg ) => {
-			return isPromisey( arg ) ? arg : Promise.resolve( arg );
-		} );
-		return Promise.all( promises )
-			.then( ( resolved ) => {
-				return fn.apply( null, resolved );
-			} );
+		const values = await Promise.all( 
+			args.map( arg => isPromisey( arg ) ? arg : arg ) 
+		);
+		return fn.apply( null, values );
 	}
 }
 
@@ -116,10 +113,10 @@ function canResolve( containerName, dependencies, scopeName ) {
 }
 
 function checkDependencies( fn, dependencies ) {
-	let fnString = fn.toString();
+	const fnString = fn.toString();
 	if ( /[(][^)]*[)]/.test( fnString ) ) {
 		return ( isFunction( fn ) && !dependencies.length ) ?
-			trim( /[(]([^)]*)[)]/.exec( fnString )[ 1 ].split( ',' ) ) :
+			trim( /[(]([^)]*)[)]/.exec( fnString )[ 1 ].split( "," ) ) :
 			dependencies;
 	} else {
 		return undefined;
@@ -150,7 +147,7 @@ function clone(source, target) {
 }
 
 function configure( config ) {
-	let containerNames = Object.keys( config || {} );
+	const containerNames = Object.keys( config || {} );
 	containerNames.forEach( ( containerName ) => {
 		let containerConfig = config[ containerName ];
 		let keys = Object.keys( containerConfig );
@@ -160,19 +157,19 @@ function configure( config ) {
 			let lifecycle;
 			if ( isObject( opt ) ) {
 				if ( opt.scoped ) {
-					lifecycle = 'scoped';
+					lifecycle = "scoped";
 					dependency = opt.scoped;
 				} else if ( opt.static ) {
-					lifecycle = 'static';
+					lifecycle = "static";
 					dependency = opt.static;
 				} else if ( opt.factory ) {
-					lifecycle = 'factory';
+					lifecycle = "factory";
 					dependency = opt.factory;
 				}
 			}
 			if ( !dependency ) {
 				dependency = opt;
-				lifecycle = isFunction( opt ) ? 'factory' : 'static';
+				lifecycle = isFunction( opt ) ? "factory" : "static";
 			}
 			register( containerName, key, dependency, lifecycle );
 		} );
@@ -195,13 +192,13 @@ function contains( list, value ) {
 
 function displayDependency( obj ) {
 	if ( isFunction( obj ) ) {
-		return obj.name || 'anonymous function';
+		return obj.name || "anonymous function";
 	} else if ( isString( obj ) || isNumber( obj ) || Array.isArray( obj ) || isDate( obj ) ) {
 		return obj;
 	} else if ( isPlainObject( obj ) ) {
-		return '[Object Literal]';
+		return "[Object Literal]";
 	} else {
-		return obj.constructor.name || '[Object]';
+		return obj.constructor.name || "[Object]";
 	}
 }
 
@@ -222,8 +219,8 @@ function find( list, predicate ) {
 	do {
 		item = list[ ++index ];
 		found = predicate( item );
-	} while( !found && index < list.length )
-	return item;
+	} while( !found && index < list.length - 1 )
+	return found ? item : undefined;
 }
 
 function findParent( mod ) {
@@ -239,9 +236,9 @@ function findParent( mod ) {
 }
 
 function get( containerName, key, scopeName = DEFAULT ) {
-	let missingKeys = getMissingDependencies( containerName, key, scopeName );
+	const missingKeys = getMissingDependencies( containerName, key, scopeName );
 	if ( missingKeys.length > 0 ) {
-		throw new Error( util.format( 'Fount could not resolve the following dependencies: %s', missingKeys.join( ', ' ) ) );
+		throw new Error( `Fount could not resolve the following dependencies: ${missingKeys.join( ', ' )}` );
 	}
 	if ( Array.isArray( key ) ) {
 		return key.reduce( ( acc, k ) => {
@@ -255,13 +252,13 @@ function get( containerName, key, scopeName = DEFAULT ) {
 
 function getArguments( containerName, dependencies, fn, scopeName ) {
 	dependencies = checkDependencies( fn, dependencies );
-	let missingKeys = getMissingDependencies( containerName, dependencies, scopeName );
+	const missingKeys = getMissingDependencies( containerName, dependencies, scopeName );
 	if ( missingKeys.length > 0 ) {
-		throw new Error( util.format( 'Fount could not resolve the following dependencies: %s', missingKeys.join( ', ' ) ) );
+		throw new Error( `Fount could not resolve the following dependencies: ${missingKeys.join( ', ' )}` );		
 	}
 
 	return dependencies.map( function( key ) {
-		let parts = key.split( /[._]/ );
+		const parts = key.split( /[._]/ );
 		let ctrName = containerName;
 		if ( parts.length > 1 ) {
 			ctrName = getContainerName( containerName, parts );
@@ -272,11 +269,11 @@ function getArguments( containerName, dependencies, fn, scopeName ) {
 }
 
 function getContainerName( name, parts ) {
-	let lead = parts.slice( 0, -1 );
+	const lead = parts.slice( 0, -1 );
 	if( name === "default" ) {
-		return lead.join( '.' );
+		return lead.join( "." );
 	} else {
-		return ( [ name ].concat( lead ) ).join( '.' );
+		return ( [ name ].concat( lead ) ).join( "." );
 	}
 }
 
@@ -285,10 +282,10 @@ function getKey( parts ) {
 }
 
 function getLoadedModule( name ) {
-	let parent = findParent( module );
-	let regex = new RegExp( name );
-	let candidate = find( parent.children, function( child ) {
-		return regex.test( child.id ) && contains( child.id.split( '/' ), name );
+	const parentModule = findParent( module );
+	const regex = new RegExp( name );
+	const candidate = find( parentModule.children, function( child ) {
+		return regex.test( child.id ) && contains( child.id.split( "/" ), name );
 	} );
 	if ( candidate ) {
 		candidate.exports.__npm = candidate.exports.__npm || true;
@@ -299,12 +296,12 @@ function getLoadedModule( name ) {
 }
 
 function getModuleFromInstalls( name ) {
-	let parent = findParent( module );
-	let installPath = find( parent.paths, function( p ) {
-		let modPath = path.join( p, name );
+	const parentModule = findParent( module );
+	const installPath = find( parentModule.paths, function( p ) {
+		const modPath = path.join( p, name );
 		return fs.existsSync( modPath );
 	} );
-	let mod;
+	var mod;
 	if ( installPath ) {
 		mod = require( path.join( installPath, name ) );
 		mod.__npm = mod.__npm || true;
@@ -327,7 +324,7 @@ function getMissingDependencies( containerName = DEFAULT, dependencies, scopeNam
 }
 
 function getValue( containerName, key, scopeName ) {
-	let parts = key.split( /[._]/ );
+	const parts = key.split( /[._]/ );
 	let ctrName = containerName;
 	let keyName = key;
 	if ( parts.length > 1 ) {
@@ -343,7 +340,7 @@ function invoke( containerName, dependencies, fn, scopeName = DEFAULT ) {
 		fn = dependencies;
 		dependencies = [];
 	}
-	let args = getArguments( containerName, dependencies, fn, scopeName );
+	const args = getArguments( containerName, dependencies, fn, scopeName );
 	if( args.length == 0 ) {
 		return fn();
 	} else {
@@ -357,7 +354,7 @@ function inject( containerName, dependencies, fn, scopeName = DEFAULT ) {
 		fn = dependencies;
 		dependencies = [];
 	}
-	let args = getArguments( containerName, dependencies, fn, scopeName );
+	const args = getArguments( containerName, dependencies, fn, scopeName );
 	return applyWhen( fn, args );
 }
 
@@ -366,44 +363,44 @@ function listContainers( containerName ) {
 }
 
 function listKeys( containerName ) {
-	let ctr = containers[ containerName ];
+	const ctr = containers[ containerName ];
 	return ctr ? ctr.keyList : [];
 }
 
 function purge( containerName ) {
-	let index = containerList.indexOf( containerName );
+	const index = containerList.indexOf( containerName );
 	if( index >= 0 ) {
-		debug( 'purging container %s', containerName );
+		debug( "purging container %s", containerName );
 		containerList.splice( index, 1 );
 		delete containers[ containerName ];
 	}
 }
 
 function purgeAll() {
-	debug( 'purging all containers' );
+	debug( "purging all containers" );
 	containerList = [];
 	containers = { scopes: {} };
 }
 
 function purgeScope( containerName, scopeName ) {
-	debug( 'purging container %s, scope %s', containerName, scopeName );
+	debug( "purging container %s, scope %s", containerName, scopeName );
 	if( containerList.indexOf( containerName ) >= 0 ) {
 		delete containers[ containerName ].scopes[ scopeName ];	
 	}
 }
 
 function pushMissingKey( containerName, key, acc ) {
-	let originalKey = key;
-	let parts = key.split( /[._]/ );
+	const originalKey = key;
+	const parts = key.split( /[._]/ );
 	let hasKey = false;
 	if ( parts.length > 1 ) {
-		let container = containers[ getContainerName( containerName, parts ) ];
+		const ctr = containers[ getContainerName( containerName, parts ) ];
 		hasKey =
-			container != null &&
-			container[ getKey( parts ) ] != null;
+			ctr != null &&
+			ctr[ getKey( parts ) ] != null;
 	} else {
-		let container = containers[ containerName ];
-		hasKey = container && container[ key ] != null;	
+		let ctr = containers[ containerName ];
+		hasKey = ctr && ctr[ key ] != null;	
 	}
 	if( !hasKey ) {
 		acc.push( originalKey );
@@ -414,14 +411,14 @@ function pushMissingKey( containerName, key, acc ) {
 function register() {
 	let containerName = arguments[ 0 ];
 	let key = arguments[ 1 ];
-	let parts = key.split( /[._]/ );
+	const parts = key.split( /[._]/ );
 	if ( parts.length > 1 ) {
 		containerName = getContainerName( containerName, parts );
 		key = getKey( parts );
 	}
-	let args2 = arguments[ 2 ];
-	let args3 = arguments[ 3 ];
-	let args4 = arguments[ 4 ];
+	const args2 = arguments[ 2 ];
+	const args3 = arguments[ 3 ];
+	const args4 = arguments[ 4 ];
 	// function passed for value, no dependency list
 	if( isFunction( args2 ) ) {
 		registerFunction( containerName, key, args2, [], args3 );
@@ -437,10 +434,9 @@ function register() {
 }
 
 function registerValues( containerName, key, values, lifecycle = STATIC ) {
-	debug( 'Registering key "%s" for container "%s" with %s lifecycle: %s',
-		key, containerName, lifecycle, getDisplay( values ) );
-	let value = wrappers[ lifecycle ]( containerName, key, values );
-	let ctr = container( containerName );
+	debug( `Registering key "${key}" for container "${container}" with "${lifecycle}: ${getDisplay( values )}`)
+	const value = wrappers[ lifecycle ]( containerName, key, values );
+	const ctr = container( containerName );
 	ctr[ key ] = value;
 	ctr.keyList.push( key );
 	if( containerName !== DEFAULT ) {
@@ -450,10 +446,9 @@ function registerValues( containerName, key, values, lifecycle = STATIC ) {
 
 function registerFunction( containerName, key, fn, dependencies, lifecycle = STATIC ) {
 	dependencies = checkDependencies( fn, dependencies );
-	debug( 'Registering key "%s" for container "%s" with %s lifecycle: %s',
-		key, containerName, lifecycle, getDisplay( fn ) );
-	let value = wrappers[ lifecycle ]( containerName, key, fn, dependencies );
-	let ctr = container( containerName );
+	debug( `Registering key "${key}" for container "${container}" with "${lifecycle}: ${getDisplay( dependencies )}`)
+	const value = wrappers[ lifecycle ]( containerName, key, fn, dependencies );
+	const ctr = container( containerName );
 	ctr[ key ] = value;
 	ctr.keyList.push( key );
 	if( containerName !== DEFAULT ) {
@@ -462,12 +457,12 @@ function registerFunction( containerName, key, fn, dependencies, lifecycle = STA
 }
 
 function registerModule( containerName, name ) {
-	let mod = getLoadedModule( name ) ||  getModuleFromInstalls( name );
+	const mod = getLoadedModule( name ) || getModuleFromInstalls( name );
 	if ( mod ) {
-		let lifecycle = isFunction( mod ) ? 'factory' : 'static';
+		const lifecycle = isFunction( mod ) ? "factory" : "static";
 		register( containerName, name, mod, lifecycle );
 	} else {
-		debug( 'Fount could not find NPM module %s', name );
+		debug( `Fount could not find NPM module ${name}` );
 	}
 	return mod;
 }
@@ -477,7 +472,7 @@ function registerAsValue( containerName, key, val ) {
 }
 
 function resolve( containerName, key, scopeName ) {
-	let value = get( containerName, key, scopeName );
+	const value = get( containerName, key, scopeName );
 	if( Array.isArray( key ) ) {
 		return whenKeys( value );
 	} else {
@@ -487,8 +482,8 @@ function resolve( containerName, key, scopeName ) {
 
 function resolveFunction( containerName, key, value, dependencies, store, scopeName ) {
 	let hasPromises = false;
-	let args = dependencies.map( function( dependencyKey ) {
-		let dependencyValue = getValue( containerName, dependencyKey, scopeName );
+	const args = dependencies.map( function( dependencyKey ) {
+		const dependencyValue = getValue( containerName, dependencyKey, scopeName );
 		if( isPromisey( dependencyValue ) ) {
 			hasPromises = true;
 		}
@@ -502,7 +497,7 @@ function resolveFunction( containerName, key, value, dependencies, store, scopeN
 }
 
 function scope( containerName, name ) {
-	let ctr = container( containerName );
+	const ctr = container( containerName );
 	return ( ctr.scopes[ name ] = ctr.scopes[ name ] || {} );
 }
 
@@ -523,19 +518,21 @@ function type( obj ) {
 }
 
 function whenKeys( hash ) {
-	let acc = {};
-	let keys = Object.keys( hash );
-	let promises = keys.map( ( key ) => {
-		let promise = hash[ key ];
-		if( !isPromisey( promise ) ) {
-			promise = Promise.resolve( promise );
+	const resolved = {};
+	const keys = Object.keys( hash );
+	const promises = keys.reduce( ( acc, key ) => {
+		const value = hash[ key ];
+		resolved[ key ] = undefined;
+		if( !isPromisey( value ) ) {
+			resolved[ key ] = value;
+		} else {
+			acc.push( value.then( ( x ) => resolved[ key ] = x ) );
 		}
-		acc[ key ] = undefined;
-		return promise.then( ( value ) => acc[ key ] = value );
-	} );
+		return acc;
+	}, [] );
 
 	return Promise.all( promises )
-		.then( () => acc );
+		.then( () => resolved );
 }
 
 function factoryResolver( containerName, key, value, dependencies ) {
@@ -547,8 +544,8 @@ function factoryResolver( containerName, key, value, dependencies ) {
 			}
 			if ( dependencies && canResolve( dependencyContainer, dependencies, scopeName ) ) {
 				let promises = false;
-				let args = dependencies.map( function( key ) {
-					let val = getValue( dependencyContainer, key, scopeName );
+				const args = dependencies.map( function( key ) {
+					const val = getValue( dependencyContainer, key, scopeName );
 					if( isPromisey( val ) ) {
 						promises = true;
 					}
@@ -567,8 +564,8 @@ function factoryResolver( containerName, key, value, dependencies ) {
 
 function scopedResolver( containerName, key, value, dependencies ) {
 	return function( scopeName ) {
-		let cache = scope( containerName, scopeName );
-		let store = function( resolvedTo ) {
+		const cache = scope( containerName, scopeName );
+		const store = function( resolvedTo ) {
 			cache[ key ] = clone( resolvedTo );
 			return resolvedTo;
 		};
@@ -596,7 +593,7 @@ function scopedResolver( containerName, key, value, dependencies ) {
 }
 
 function staticResolver( containerName, key, value, dependencies ) {
-	let store = function( resolvedTo ) {
+	const store = function( resolvedTo ) {
 		return resolvedTo;
 	};
 	if ( isFunction( value ) && !isStub( value ) ) {
@@ -605,19 +602,19 @@ function staticResolver( containerName, key, value, dependencies ) {
 				return value();
 			}
 		} else if( dependencies && canResolve( containerName, dependencies ) ) {
-			let val = resolveFunction( containerName, key, value, dependencies, store );
+			const val = resolveFunction( containerName, key, value, dependencies, store );
 			return function() {
 				return val;
 			}
 		} else {
-			let resolvedValue;
+			var resolvedValue;
 			return function() {
 				if( resolvedValue ) {
 					return resolvedValue;
 				} else {
 					return new Promise( function( res ) {
 						if( dependencies && canResolve( containerName, dependencies ) ) {
-							let resolved = resolveFunction( containerName, key, value, dependencies, store );
+							const resolved = resolveFunction( containerName, key, value, dependencies, store );
 							if( isPromisey( resolved ) ) {
 								resolved.then( ( r ) => {
 									resolvedValue = r;
