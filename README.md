@@ -1,12 +1,15 @@
 # Fount
-Fount is a promise based DI container for Node.js.
+Fount provides synchronous and asynchronous dependency resolution.
+
+[![Build Status][travis-image]][travis-url]
+[![Coverage Status][coveralls-image]][coveralls-url]
 
 ## Getting started
 
-`npm install fount -S`
+`npm i fount`
 
 ```javascript
-var fount = require( 'fount' );
+const fount = require( 'fount' );
 ```
 
 ## A note about style and safety
@@ -14,21 +17,20 @@ Fount supports two styles of identifying dependency: string array (like AMD) and
 
 Example:
 ```javascript
-// string array
-fount.inject( [ 'one', 'two', 'three' ], function( one, two, three ) {
-	// your code here
-} );
-
 // argument name
 fount.inject( function( one, two, three ) {
 	// your code here
 } );
 
+// string array
+fount.inject( [ 'one', 'two', 'three' ], function( one, two, three ) {
+	// your code here
+} );
 ```
 
-The second approach is easier to read when starting out, but consider how fragile it is. If someone were to come along and refactor your generic arguments to be more expressive and not change the keys the dependencies were registered against, it would break a lot of code.
+The second approach is easiest to work with, but keep in mind that if using this in the browser, a minifier will change the argument names and break resolution.
 
-You get to choose the style you prefer, just keep in mind there's more risk with argument name only.
+The key with any approach is always test your code.
 
 ## Multiple Containers
 Fount supports multiple containers. If you don't specify one when making calls, it will use the 'default' container. Most examples in this doc use the default container implicitly.
@@ -101,7 +103,7 @@ If you want fount to inject dependencies into the function when calling it, you'
 // AMD users should feel right at home with this style
 fount.register( 'factory', [ 'a', 'b', 'c' ], function( a, b, c ) {} );
 
-// Angular fans and dare-devils may enjoy this style
+// Angular fans may enjoy this style
 // dependencies are 'read' out of the argument list
 fount.register( 'factory', function( a, b, c ) {} );
 ```
@@ -125,7 +127,7 @@ fount.registerAsValue( 'calculator', function( x, y ) { return x + y; } );
 Registering a promise looks almost identical to registering a function. From a consuming perspective, they're functionally equivalent since fount will wrap raw function execution in a promise anyway.
 
 ```javascript
-fount.register( 'todo', when.promise( function( reject, resolve ) {
+fount.register( 'todo', new Promise( function( reject, resolve ) {
 	resolve( 'done' );
 } ) );
 ```
@@ -181,10 +183,14 @@ Injecting is how you get fount to apply resolved dependencies to a function. It 
 
 ```javascript
 // where 'a' and 'b' have been registered
-fount.inject( [ 'a', 'b' ], function( a, b )  { ... } );
+fount.inject( [ 'a', 'b' ], function( a, b ) { } );
+
+fount.inject( ( a, b ) => { } );
 
 // within custom scope -- requires a and/or b to have been registered with 'scoped' lifecycle
 fount.inject( [ 'a', 'b' ], function( a, b )  { ... }, 'myScope' );
+
+fount.inject( ( a, b ) => { }, 'myScope' );
 
 // using keys across multiple containers
 fount.inject( [ 'one.a', 'two.b' ], function( a, b ) { ... } );
@@ -200,15 +206,15 @@ These methods return a value immediately and assume that the dependencies involv
 As the name implies, `get` simply returns the value of the key from the container. It does still work like resolve in terms of plugging in dependency chains, but it does not resolve promises between dependency levels.
 
 ```javascript
-let gimme = fount.get( 'gimme' ); // returns the value of gimme immediately
+let gimme = fount.get( "gimme" ); // returns the value of gimme immediately
 
-let scoped = fount.get( 'gimme', 'custom' ); // the value for scope 'custom'
+let scoped = fount.get( "gimme", "custom" ); // the value for scope 'custom'
 
 // resolve multiple dependencies at once!
-let { one, two } = fount.get( [ 'one', 'two' ] );
+let { one, two } = fount.get( [ "one", "two" ] );
 
 // resolve multiple dependencies ACROSS containers
-let hash = fount.get( [ 'a.one', 'b.two' ] );
+let hash = fount.get( [ "a.one", "b.two" ] );
 ```
 
 ### Invoking
@@ -216,14 +222,18 @@ Invoking is how you get fount to apply dependencies to a function without promis
 
 Again: any promises encountered will result in odd behavior - write tests :)
 ```javascript
-// where 'a' and 'b' have been registered
-fount.invoke( [ 'a', 'b' ], function( a, b )  { ... } );
+// where "a" and "b" have been registered
+fount.invoke( [ "a", "b" ], function( a, b ) { } );
+
+fount.invoke( ( a, b ) => { } );
 
 // within custom scope -- requires a and/or b to have been registered with 'scoped' lifecycle
-fount.invoke( [ 'a', 'b' ], function( a, b )  { ... }, 'myScope' );
+fount.invoke( [ "a", "b" ], function( a, b )  { ... }, "myScope" );
+
+fount.invoke( ( a, b ) => { }, "myScope" );
 
 // using keys across multiple containers
-fount.invoke( [ 'one.a', 'two.b' ], function( a, b ) { ... } );
+fount.invoke( [ "one.a", "two.b" ], function( a, b ) { ... } );
 
 // alternate support for multiple containers
 fount.invoke( function( one_a, two_b ) { ... } );
@@ -233,9 +243,9 @@ fount.invoke( function( one_a, two_b ) { ... } );
 To check whether fount is able to resolve a dependency ahead of time, use `canResolve`:
 
 ```javascript
-fount.canResolve( 'key1' );
+fount.canResolve( "key1" );
 
-fount.canResolve( [ 'key1', 'key2' ] );
+fount.canResolve( [ "key1", "key2" ] );
 ```
 
 ## Configuration
@@ -317,6 +327,12 @@ Right now this is pretty weak, but if you call `log`, Fount will dump the contai
 
 ## Tests & CI Mode
 
-* Running `gulp` starts both the `test` and `watch` tasks, so you'll see the tests re-run any time you save a file under `src/` or `spec/`.
-* Running `gulp coverage` will run istanbul and create a `coverage/` folder.
-* Running `gulp show-coverage` will run istanbul and open the browser-based coverage report.
+* `npm test` runs the tests once
+* `npm run coverage` gets a coverage report
+* `npm run continuous` runs mocha in watch mode
+* `npm run release` will cut a new standard version, update the changelog and tag the last commit.
+
+[travis-url]: https://travis-ci.org/arobson/fount
+[travis-image]: https://travis-ci.org/arobson/fount.svg?branch=master
+[coveralls-url]: https://coveralls.io/github/arobson/fount?branch=master
+[coveralls-image]: https://coveralls.io/repos/github/arobson/fount/badge.svg?branch=master

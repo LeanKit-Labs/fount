@@ -10,6 +10,8 @@ Proposed official release:
  * removes dependencies on when and lodash
  * eliminates a memory leak caused by adding containers when checking for non-existing keys/namespaces
  * attempts to clean up some of the functions and eliminate repeated logic
+ * add's travis CI and coveralls
+ * drops gulp
 
 ## 0.2.x
 
