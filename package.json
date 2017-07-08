@@ -1,6 +1,6 @@
 {
   "name": "fount",
-  "version": "2.0.0",
+  "version": "1.0.0",
   "description": "A source from which dependencies flow",
   "main": "./src/index.js",
   "scripts": {
@@ -12,7 +12,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git://github.com/LeanKit-Labs/fount"
+    "url": "git://github.com/arobson/fount"
   },
   "keywords": [
     "DI",
@@ -51,7 +51,6 @@
     "sinon": "~1.14.1",
     "standard": "^10.0.2",
     "standard-version": "^4.2.0",
-    "when": "~3.7.2",
     "whistlepunk": "^0.3.3"
   }
 }

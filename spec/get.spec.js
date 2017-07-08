@@ -299,24 +299,24 @@ describe('Get', function () {
   })
 
   describe('when registering and resolving 10k of keys', () => {
-    it('should register 10k keys in the same container in 50 ms', () => {
+    it('should register 10k keys in the same container in 250 ms', () => {
       let container = fount('new.sync')
       let time = Date.now()
       for (let i = 1; i < 10000; i++) {
         container.register(`${i}`, i)
       }
       let elapsed = Date.now() - time
-      elapsed.should.be.lessThan(50)
+      elapsed.should.be.lessThan(250)
     })
 
-    it('should resolve 10k keys from the same container in 100 ms', () => {
+    it('should resolve 10k keys from the same container in 500 ms', () => {
       let container = fount('new.sync')
       let time = Date.now()
       for (var i = 1; i < 10000; i++) {
         container.get(`${i}`).should.equal(i)
       }
       let elapsed = Date.now() - time
-      elapsed.should.be.lessThan(100)
+      elapsed.should.be.lessThan(500)
     })
   })
 

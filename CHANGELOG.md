@@ -1,17 +1,19 @@
-## 1.x.x
+# Change Log
 
-### 1.0.0
+All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
-Proposed official release:
+<a name="1.0.0"></a>
+## 1.0.0 (2017-07-08)
 
- * adds synchronous dependency resolution
- * enables multi-level namespaces
- * adds feature to get list of keys
- * removes dependencies on when and lodash
- * eliminates a memory leak caused by adding containers when checking for non-existing keys/namespaces
- * attempts to clean up some of the functions and eliminate repeated logic
- * add's travis CI and coveralls
- * drops gulp
+* clean up formatting and const vs let ([7f410ca](https://github.com/LeanKit-Labs/fount/commit/7f410ca))
+* adds synchronous dependency resolution
+* enables multi-level namespaces
+* adds feature to get list of keys
+* removes dependencies on when and lodash
+* eliminates a memory leak caused by adding containers when checking fornon-existing keys/namespaces
+* attempts to clean up some of the functions and eliminate repeated logic
+* add's travis CI and coveralls
+* drops gulp
 
 ## 0.2.x
 

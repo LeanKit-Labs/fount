@@ -19,14 +19,12 @@ const REGEX_TAG = '[object RegExp]'
 const STRING_TAG = '[object String]'
 const NOT_AN_OBJECT = ''
 
-async function applyWhen (fn, args) {
+function applyWhen (fn, args) {
   if (!args || args.length === 0) {
     return fn()
   } else {
-    const values = await Promise.all(
-      args.map(arg => isPromisey(arg) ? arg : arg)
-    )
-    return fn.apply(null, values)
+    return Promise.all(args.map(arg => isPromisey(arg) ? arg : arg))
+      .then(values => fn.apply(null, values))
   }
 }
 
