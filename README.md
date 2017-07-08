@@ -59,6 +59,7 @@ A scope is just a simple name that can affect how a function dependency is resol
 Think of a scope in Fount like a second level of caching (because that's exactly what it is). You can purge a scope anytime with `purgeScope`:
 
 ```javascript
+// purges scope `myScope` out of `default` container 
 fount.purgeScope( 'myScope' );
 ```
 

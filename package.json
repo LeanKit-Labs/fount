@@ -1,9 +1,10 @@
 {
   "name": "fount",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "A source from which dependencies flow",
   "main": "./src/index.js",
   "scripts": {
+    "pretest": "standard",
     "test": "./node_modules/mocha/bin/mocha spec/*.spec.js",
     "coverage": "nyc npm test",
     "continuous": "./node_modules/mocha/bin/mocha spec/*.spec.js -w",
@@ -28,6 +29,16 @@
   "dependencies": {
     "debug": "~2.1.3"
   },
+  "standard": {
+    "env": [
+      "mocha"
+    ],
+    "globals": [
+      "expect",
+      "should",
+      "sinon"
+    ]
+  },
   "devDependencies": {
     "chai": "~2.1.1",
     "chai-as-promised": "~4.3.0",
@@ -38,6 +49,7 @@
     "nyc": "^11.0.2",
     "postal": "^1.0.2",
     "sinon": "~1.14.1",
+    "standard": "^10.0.2",
     "standard-version": "^4.2.0",
     "when": "~3.7.2",
     "whistlepunk": "^0.3.3"
