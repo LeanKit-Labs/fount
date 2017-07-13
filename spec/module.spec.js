@@ -2,7 +2,7 @@ require('./setup')
 var fount = require('../src/index.js')
 var postal = require('postal')
 
-describe('NPM Dependencies', function () {
+describe('npm Dependencies', function () {
   describe('when require cache has dependency', function () {
     describe('with static dependency', function () {
       before(function () {

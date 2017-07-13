@@ -262,7 +262,7 @@ const fount = function (containerName) {
     configure(containerName)
   } else {
     return {
-      canResolve: state.canResolve.bind(undefined, containerName),
+      canResolve: state.canResolve.bind(state, containerName),
       get: get.bind(undefined, containerName),
       invoke: invoke.bind(undefined, containerName),
       inject: inject.bind(undefined, containerName),

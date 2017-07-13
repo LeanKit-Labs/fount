@@ -268,7 +268,7 @@ describe('Resolving', function () {
           fount.canResolve('unmet').should.equal(false)
         })
 
-        it('should not resolve missing dependency in non-default container from NPM', function () {
+        it('should not resolve missing dependency in non-default container from npm', function () {
           fount.canResolve('special.when').should.equal(false)
         })
       })
