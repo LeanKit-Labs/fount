@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="1.0.1"></a>
+## 1.0.1 (2017-07-13)
+
+
+### Bug Fixes
+
+* clean up formatting and const vs let ([7f410ca](https://github.com/arobson/fount/commit/7f410ca))
+* named container canResolve is now bound correctly ([cca7740](https://github.com/arobson/fount/commit/cca7740))
+
+
+
 <a name="1.0.0"></a>
 ## 1.0.0 (2017-07-08)
 
