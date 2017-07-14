@@ -1,4 +1,4 @@
-const util = require('./utility')
+const _ = require('fauxdash')
 
 class ValueSet {
   constructor () {
@@ -27,7 +27,7 @@ class ValueSet {
       this.scopeCache.set(scopeName, scope)
     }
     this.addKeyScope(key, scopeName)
-    const clone = util.clone(value)
+    const clone = _.clone(value)
     scope.set(key, clone)
     return clone
   }
@@ -58,7 +58,7 @@ class ValueSet {
       return this.scopeCache.get(scopeName).get(key)
     } else {
       const value = this.definitions.get(key)
-      if (util.isFunction(value)) {
+      if (_.isFunction(value)) {
         return value(this.store.bind(this, key, scopeName), scopeName)
       } else {
         return this.store(key, scopeName, value)
@@ -67,7 +67,7 @@ class ValueSet {
   }
 
   store (key, scopeName, value) {
-    if (util.isPromisey(value)) {
+    if (_.isPromisey(value)) {
       return value.then(x => this.cache(key, x, scopeName))
     } else {
       return this.cache(key, value, scopeName)

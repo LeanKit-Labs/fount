@@ -10,6 +10,7 @@ var parent
 const Fount = require('./fount')
 const state = new Fount()
 const util = require('./utility')
+const _ = require('fauxdash')
 const resolvers = require('./resolvers')(state)
 
 function allKeys () {
@@ -24,8 +25,8 @@ function allKeys () {
 function checkDependencies (fn, dependencies) {
   const fnString = fn.toString()
   if (/[(][^)]*[)]/.test(fnString)) {
-    return (util.isFunction(fn) && !dependencies.length)
-      ? util.trim(/[(]([^)]*)[)]/.exec(fnString)[ 1 ].split(','))
+    return (_.isFunction(fn) && !dependencies.length)
+      ? _.trim(/[(]([^)]*)[)]/.exec(fnString)[ 1 ].split(','))
       : dependencies
   } else {
     return undefined
@@ -41,7 +42,7 @@ function configure (config) {
       let opt = containerConfig[ key ]
       let dependency
       let lifecycle
-      if (util.isObject(opt)) {
+      if (_.isObject(opt)) {
         if (opt.scoped) {
           lifecycle = 'scoped'
           dependency = opt.scoped
@@ -55,7 +56,7 @@ function configure (config) {
       }
       if (!dependency) {
         dependency = opt
-        lifecycle = util.isFunction(opt) ? 'factory' : 'static'
+        lifecycle = _.isFunction(opt) ? 'factory' : 'static'
       }
       register(containerName, key, dependency, lifecycle)
     })
@@ -63,11 +64,11 @@ function configure (config) {
 }
 
 function displayDependency (obj) {
-  if (util.isFunction(obj)) {
+  if (_.isFunction(obj)) {
     return obj.name || 'anonymous function'
-  } else if (util.isString(obj) || util.isNumber(obj) || Array.isArray(obj) || util.isDate(obj)) {
+  } else if (_.isString(obj) || _.isNumber(obj) || Array.isArray(obj) || _.isDate(obj)) {
     return obj
-  } else if (util.isPlainObject(obj)) {
+  } else if (_.isPlainObject(obj)) {
     return '[Object Literal]'
   } else {
     return obj.constructor.name || '[Object]'
@@ -122,8 +123,8 @@ function getArguments (containerName, dependencies, fn, scopeName) {
 function getLoadedModule (name) {
   const parentModule = findParent(module)
   const regex = new RegExp(name)
-  const candidate = util.find(parentModule.children, function (child) {
-    return regex.test(child.id) && util.contains(child.id.split('/'), name)
+  const candidate = _.find(parentModule.children, function (child) {
+    return regex.test(child.id) && _.contains(child.id.split('/'), name)
   })
   if (candidate) {
     candidate.exports.__npm = candidate.exports.__npm || true
@@ -135,7 +136,7 @@ function getLoadedModule (name) {
 
 function getModuleFromInstalls (name) {
   const parentModule = findParent(module)
-  const installPath = util.find(parentModule.paths, function (p) {
+  const installPath = _.find(parentModule.paths, function (p) {
     const modPath = path.join(p, name)
     return fs.existsSync(modPath)
   })
@@ -148,7 +149,7 @@ function getModuleFromInstalls (name) {
 }
 
 function invoke (containerName, dependencies, fn, scopeName = DEFAULT) {
-  if (util.isFunction(dependencies)) {
+  if (_.isFunction(dependencies)) {
     scopeName = fn
     fn = dependencies
     dependencies = []
@@ -162,13 +163,13 @@ function invoke (containerName, dependencies, fn, scopeName = DEFAULT) {
 }
 
 function inject (containerName, dependencies, fn, scopeName = DEFAULT) {
-  if (util.isFunction(dependencies)) {
+  if (_.isFunction(dependencies)) {
     scopeName = fn
     fn = dependencies
     dependencies = []
   }
   const args = getArguments(containerName, dependencies, fn, scopeName)
-  return util.applyWhen(fn, args)
+  return _.applyWhen(fn, args)
 }
 
 function register () {
@@ -184,11 +185,11 @@ function register () {
   const args4 = arguments[ 4 ]
   /* eslint-disable brace-style */
   // function passed for value, no dependency list
-  if (util.isFunction(args2)) {
+  if (_.isFunction(args2)) {
     registerFunction(containerName, key, args2, [], args3)
   }
   // function passed for value with preceding dependency list
-  else if (util.isFunction(args3)) {
+  else if (_.isFunction(args3)) {
     registerFunction(containerName, key, args3, args2, args4)
   }
   // values were passed directly
@@ -214,7 +215,7 @@ function registerFunction (containerName, key, fn, dependencies, lifecycle = STA
 function registerModule (containerName, name) {
   const mod = getLoadedModule(name) || getModuleFromInstalls(name)
   if (mod) {
-    const lifecycle = util.isFunction(mod) ? 'factory' : 'static'
+    const lifecycle = _.isFunction(mod) ? 'factory' : 'static'
     register(containerName, name, mod, lifecycle)
   } else {
     debug(`Fount could not find NPM module ${name}`)
@@ -231,7 +232,7 @@ function resolve (containerName, key, scopeName) {
   if (Array.isArray(key)) {
     return whenKeys(value)
   } else {
-    return util.isPromisey(value) ? value : Promise.resolve(value)
+    return _.isPromisey(value) ? value : Promise.resolve(value)
   }
 }
 
@@ -245,7 +246,7 @@ function whenKeys (hash) {
   const promises = keys.reduce((acc, key) => {
     const value = hash[ key ]
     resolved[ key ] = undefined
-    if (!util.isPromisey(value)) {
+    if (!_.isPromisey(value)) {
       resolved[ key ] = value
     } else {
       acc.push(value.then(x => { resolved[ key ] = x }))
@@ -258,7 +259,7 @@ function whenKeys (hash) {
 }
 
 const fount = function (containerName) {
-  if (util.isObject(containerName)) {
+  if (_.isObject(containerName)) {
     configure(containerName)
   } else {
     return {

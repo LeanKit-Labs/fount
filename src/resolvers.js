@@ -1,16 +1,16 @@
-const util = require('./utility')
+const _ = require('fauxdash')
 
 function resolveFunction (state, containerName, key, value, dependencies, store, scopeName) {
   let hasPromises = false
   const args = dependencies.map(function (dependencyKey) {
     const dependencyValue = state.resolve(containerName, dependencyKey, scopeName)
-    if (util.isPromisey(dependencyValue)) {
+    if (_.isPromisey(dependencyValue)) {
       hasPromises = true
     }
     return dependencyValue
   })
   if (hasPromises) {
-    return util.applyWhen(value, args).then(store)
+    return _.applyWhen(value, args).then(store)
   } else {
     return store(value.apply(null, args))
   }
@@ -18,7 +18,7 @@ function resolveFunction (state, containerName, key, value, dependencies, store,
 
 function factoryResolver (state, containerName, key, value, dependencies) {
   return function (store, scopeName) {
-    if (util.isFunction(value)) {
+    if (_.isFunction(value)) {
       let dependencyContainer = containerName
       if (value.__npm) {
         dependencyContainer = key
@@ -27,13 +27,13 @@ function factoryResolver (state, containerName, key, value, dependencies) {
         let promises = false
         const args = dependencies.map(function (key) {
           const val = state.resolve(dependencyContainer, key, scopeName)
-          if (util.isPromisey(val)) {
+          if (_.isPromisey(val)) {
             promises = true
           }
           return val
         })
         if (promises) {
-          return util.applyWhen(value, args)
+          return _.applyWhen(value, args)
         } else {
           return value.apply(null, args)
         }
@@ -45,7 +45,7 @@ function factoryResolver (state, containerName, key, value, dependencies) {
 
 function scopedResolver (state, containerName, key, value, dependencies) {
   return function (store, scopeName) {
-    if (util.isFunction(value)) {
+    if (_.isFunction(value)) {
       if (dependencies && state.canResolve(containerName, dependencies, scopeName)) {
         return resolveFunction(state, containerName, key, value, dependencies, store, scopeName)
       } else {
@@ -63,7 +63,7 @@ function scopedResolver (state, containerName, key, value, dependencies) {
 
 function staticResolver (state, containerName, key, value, dependencies) {
   const store = x => x
-  if (util.isFunction(value) && !util.isStub(value)) {
+  if (_.isFunction(value) && !_.isStub(value)) {
     if (!dependencies || dependencies.length === 0) {
       return function () {
         return value()
@@ -82,7 +82,7 @@ function staticResolver (state, containerName, key, value, dependencies) {
           return new Promise(function (resolve) {
             if (dependencies && state.canResolve(containerName, dependencies)) {
               const resolved = resolveFunction(state, containerName, key, value, dependencies, store)
-              if (util.isPromisey(resolved)) {
+              if (_.isPromisey(resolved)) {
                 resolved.then((r) => {
                   resolvedValue = r
                   resolve(r)
