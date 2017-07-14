@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="1.1.0"></a>
+# [1.1.0](https://github.com/arobson/fount/compare/v1.0.1...v1.1.0) (2017-07-14)
+
+
+### Features
+
+* move common utility functions out to fauxdash ([47e036d](https://github.com/arobson/fount/commit/47e036d))
+
+
+
 <a name="1.0.1"></a>
 ## 1.0.1 (2017-07-13)
 
