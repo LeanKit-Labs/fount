@@ -115,7 +115,7 @@ describe('Resolving', function () {
 
     describe('with initially unmet dependencies', function () {
       var calls = 0
-      function delayed (a2, b2, c2) {
+      function delayed (a2, b2, c2 = 1) {
         calls++
         return a2 + b2 + c2
       }

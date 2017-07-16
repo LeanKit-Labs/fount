@@ -23,11 +23,8 @@ function allKeys () {
 }
 
 function checkDependencies (fn, dependencies) {
-  const fnString = fn.toString()
-  if (/[(][^)]*[)]/.test(fnString)) {
-    return (_.isFunction(fn) && !dependencies.length)
-      ? _.trim(/[(]([^)]*)[)]/.exec(fnString)[ 1 ].split(','))
-      : dependencies
+  if (_.isFunction(fn) && !_.isStub(fn)) {
+    return !dependencies.length ? _.getArguments(fn) : dependencies
   } else {
     return undefined
   }
@@ -172,17 +169,17 @@ function inject (containerName, dependencies, fn, scopeName = DEFAULT) {
   return _.applyWhen(fn, args)
 }
 
-function register () {
-  let containerName = arguments[ 0 ]
-  let key = arguments[ 1 ]
+function register (...parameters) {
+  let containerName = parameters[ 0 ]
+  let key = parameters[ 1 ]
   const parts = key.split(/[._]/)
   if (parts.length > 1) {
     containerName = util.getContainerName(containerName, parts)
     key = util.getKey(parts)
   }
-  const args2 = arguments[ 2 ]
-  const args3 = arguments[ 3 ]
-  const args4 = arguments[ 4 ]
+  const args2 = parameters[ 2 ]
+  const args3 = parameters[ 3 ]
+  const args4 = parameters[ 4 ]
   /* eslint-disable brace-style */
   // function passed for value, no dependency list
   if (_.isFunction(args2)) {
