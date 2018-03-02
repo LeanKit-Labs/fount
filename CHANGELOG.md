@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+<a name="1.1.4"></a>
+## [1.1.4](https://github.com/arobson/fount/compare/v1.1.3...v1.1.4) (2018-03-02)
+
+
+### Bug Fixes
+
+* update fauxdash to latest to support function arg parsing during code coverage testing ([bf79070](https://github.com/arobson/fount/commit/bf79070))
+
+
+
 <a name="1.1.3"></a>
 ## [1.1.3](https://github.com/arobson/fount/compare/v1.1.2...v1.1.3) (2017-07-16)
 
