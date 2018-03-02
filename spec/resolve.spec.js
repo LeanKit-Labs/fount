@@ -313,7 +313,7 @@ describe('Resolving', function () {
       elapsed.should.be.lessThan(50)
     })
 
-    it('should resolve 10k keys from the same container in 100 ms', function () {
+    it('should resolve 10k keys from the same container in 150 ms', function () {
       let container = fount('new.sync')
       let time = Date.now()
       let promises = []
@@ -322,7 +322,7 @@ describe('Resolving', function () {
       }
       return Promise.all(promises).then(() => {
         let elapsed = Date.now() - time
-        elapsed.should.be.lessThan(100)
+        elapsed.should.be.lessThan(150)
       })
     })
   })
