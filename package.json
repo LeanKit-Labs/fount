@@ -28,7 +28,7 @@
   "homepage": "https://github.com/LeanKit-Labs/fount",
   "dependencies": {
     "debug": "~2.1.3",
-    "fauxdash": "1.1.x"
+    "fauxdash": "1.3.x"
   },
   "standard": {
     "env": [
